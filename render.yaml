@@ -1,0 +1,35 @@
+# Render Blueprint — deploys the mailing-camp backend.
+# The database is MongoDB Atlas (external) — create a free cluster at
+# https://www.mongodb.com/atlas and set MONGODB_URI in the Render dashboard.
+services:
+  - type: web
+    name: mailing-camp-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: BATCH_DELAY_MS
+        value: "700"
+      - key: MONGODB_URI
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: FROM_NAME
+        sync: false
+      - key: REPLY_TO
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false
