@@ -32,6 +32,16 @@ export default function History({ notify }) {
     catch (e) { notify(e.message, 'error'); }
   }
 
+  async function deleteCampaign(c) {
+    if (!confirm(`Delete campaign "${c.subject}"? This removes its send log — emails already sent are not affected.`)) return;
+    try {
+      await api.deleteCampaign(c.id);
+      notify('Campaign deleted');
+      if (open === c.id) { setOpen(null); setDetail(null); }
+      load();
+    } catch (e) { notify(e.message, 'error'); }
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
       <Card className="divide-y divide-cream-200">
@@ -41,17 +51,23 @@ export default function History({ notify }) {
         </div>
         {campaigns.length === 0 && <p className="p-4 text-sm text-ink-500">No campaigns sent yet.</p>}
         {campaigns.map((c) => (
-          <button key={c.id} onClick={() => openCampaign(c.id)}
-            className={`block w-full px-4 py-3 text-left hover:bg-cream-50 ${open === c.id ? 'bg-cream-100' : ''}`}>
-            <div className="flex items-center justify-between">
+          <div key={c.id}
+            onClick={() => openCampaign(c.id)}
+            className={`cursor-pointer px-4 py-3 hover:bg-cream-50 ${open === c.id ? 'bg-cream-100' : ''}`}>
+            <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-semibold">{c.subject}</span>
-              <Badge status={c.status} />
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge status={c.status} />
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteCampaign(c); }}
+                  className="text-xs text-ink-500 hover:text-red-600">Delete</button>
+              </div>
             </div>
             <p className="mt-0.5 text-xs text-ink-500">
-              #{c.id} · {new Date(c.created_at).toLocaleString()} · {c.sent_count}/{c.total_recipients} sent
+              {new Date(c.created_at).toLocaleString()} · {c.sent_count}/{c.total_recipients} sent
               {c.failed_count > 0 && <span className="text-red-600"> · {c.failed_count} failed</span>}
             </p>
-          </button>
+          </div>
         ))}
       </Card>
 
@@ -60,9 +76,14 @@ export default function History({ notify }) {
         {open && !detail && <Card className="p-5 text-sm text-ink-500">Loading…</Card>}
         {detail && (
           <Card className="p-5">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-base font-bold">{detail.campaign.subject}</h2>
-              <Badge status={detail.campaign.status} />
+              <div className="flex shrink-0 items-center gap-3">
+                <Badge status={detail.campaign.status} />
+                <button
+                  onClick={() => deleteCampaign(detail.campaign)}
+                  className="text-xs text-ink-500 hover:text-red-600">Delete</button>
+              </div>
             </div>
             <p className="text-xs text-ink-500">
               From {detail.campaign.from_email} · {new Date(detail.campaign.created_at).toLocaleString()}

@@ -48,6 +48,17 @@ router.get('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// DELETE /api/campaigns/:id  (removes the campaign + its per-recipient send rows)
+router.delete('/:id', async (req, res, next) => {
+  try {
+    if (!isId(req.params.id)) return res.status(404).json({ error: 'not found' });
+    const campaign = await Campaign.findByIdAndDelete(req.params.id);
+    if (!campaign) return res.status(404).json({ error: 'not found' });
+    await CampaignSend.deleteMany({ campaign_id: campaign._id });
+    res.status(204).end();
+  } catch (e) { next(e); }
+});
+
 // POST /api/campaigns/preview  { subject, html, groupIds }
 router.post('/preview', async (req, res, next) => {
   try {

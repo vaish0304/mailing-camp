@@ -59,6 +59,7 @@ export const api = {
 
   listCampaigns: () => req('/api/campaigns'),
   getCampaign: (id) => req(`/api/campaigns/${id}`),
+  deleteCampaign: (id) => req(`/api/campaigns/${id}`, { method: 'DELETE' }),
   previewCampaign: (body) => req('/api/campaigns/preview', { method: 'POST', body }),
   testCampaign: (body) => req('/api/campaigns/test', { method: 'POST', body }),
   sendCampaign: (body) => req('/api/campaigns', { method: 'POST', body }),

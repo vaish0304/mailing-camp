@@ -177,6 +177,15 @@ await check('webhook updates delivery status', async () => {
   assert(after.sends.find((s) => s.resend_id === rid).status === 'opened', 'status not updated');
 });
 
+await check('delete campaign removes it and its send rows', async () => {
+  const c = (await j('/api/campaigns')).body[0];
+  const res = await fetch(`${BASE}/api/campaigns/${c.id}`, { method: 'DELETE' });
+  assert(res.status === 204, `status ${res.status}`);
+  const gone = await j(`/api/campaigns/${c.id}`);
+  assert(gone.status === 404, `expected 404 got ${gone.status}`);
+  assert((await j('/api/campaigns')).body.length === 0, 'campaign still listed');
+});
+
 await check('manual add recipient to group (upsert + validation)', async () => {
   const { status, body } = await j(`/api/groups/${groupId}/recipients`, {
     method: 'POST', headers: { 'content-type': 'application/json' },

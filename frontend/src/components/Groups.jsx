@@ -164,6 +164,16 @@ function GroupDetail({ group, notify, onChange }) {
     setSaving(false);
   }
 
+  async function deleteRecipient(r) {
+    if (!confirm(`Delete ${r.email} completely? They will be removed from every group.`)) return;
+    try {
+      await api.deleteRecipient(r.id);
+      notify(`Deleted ${r.email}`);
+      load();
+      onChange?.();
+    } catch (e) { notify(e.message, 'error'); }
+  }
+
   const setField = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
@@ -243,8 +253,9 @@ function GroupDetail({ group, notify, onChange }) {
                 <td className="py-2 pr-3">{r.company || '—'}</td>
                 <td className="py-2 pr-3">{r.city || '—'}</td>
                 <td className="py-2 pr-3">{r.phone || '—'}</td>
-                <td className="py-2 text-right">
-                  <button onClick={() => removeMember(r.id)} className="text-xs text-ink-500 hover:text-red-600">Remove</button>
+                <td className="whitespace-nowrap py-2 text-right">
+                  <button onClick={() => removeMember(r.id)} className="text-xs text-ink-500 hover:text-forest-700">Remove</button>
+                  <button onClick={() => deleteRecipient(r)} className="ml-3 text-xs text-ink-500 hover:text-red-600">Delete</button>
                 </td>
               </tr>
             ))}
