@@ -45,6 +45,7 @@ export const api = {
   updateGroup: (id, patch) => req(`/api/groups/${id}`, { method: 'PATCH', body: patch }),
   deleteGroup: (id) => req(`/api/groups/${id}`, { method: 'DELETE' }),
   groupRecipients: (id) => req(`/api/groups/${id}/recipients`),
+  addRecipient: (id, recipient) => req(`/api/groups/${id}/recipients`, { method: 'POST', body: recipient }),
   removeMember: (gid, rid) => req(`/api/groups/${gid}/members/${rid}`, { method: 'DELETE' }),
   importCsv: (id, file) => {
     const fd = new FormData();

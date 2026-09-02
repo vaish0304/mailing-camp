@@ -101,11 +101,16 @@ export default function Groups({ notify }) {
   );
 }
 
+const EMPTY_FORM = { email: '', first_name: '', last_name: '', company: '', city: '', phone: '' };
+
 function GroupDetail({ group, notify, onChange }) {
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
   async function load() {
@@ -144,6 +149,23 @@ function GroupDetail({ group, notify, onChange }) {
     } catch (e) { notify(e.message, 'error'); }
   }
 
+  async function addManual(e) {
+    e.preventDefault();
+    if (!form.email.trim()) return notify('Email is required', 'error');
+    setSaving(true);
+    try {
+      const r = await api.addRecipient(group.id, form);
+      notify(r.created ? `Added ${r.recipient.email}` : (r.addedToGroup ? `${r.recipient.email} added to this group` : `${r.recipient.email} is already in this group`));
+      setForm(EMPTY_FORM);
+      setShowAdd(false);
+      load();
+      onChange?.();
+    } catch (e) { notify(e.message, 'error'); }
+    setSaving(false);
+  }
+
+  const setField = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
   return (
     <Card className="p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -151,13 +173,33 @@ function GroupDetail({ group, notify, onChange }) {
           <h2 className="text-base font-bold">{group.name}</h2>
           <p className="text-xs text-ink-500">{recipients.length} recipients</p>
         </div>
-        <div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowAdd((s) => !s)}>
+            {showAdd ? 'Close' : '+ Add manually'}
+          </Button>
           <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={onFile} className="hidden" id="csv-input" />
           <Button variant="gold" onClick={() => fileRef.current?.click()} disabled={importing}>
             {importing ? 'Importing…' : 'Upload CSV / Excel'}
           </Button>
         </div>
       </div>
+
+      {showAdd && (
+        <form onSubmit={addManual} className="mb-4 rounded-lg border border-cream-200 bg-cream-50 p-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <Input required type="email" placeholder="Email *" value={form.email} onChange={setField('email')} />
+            <Input placeholder="First name" value={form.first_name} onChange={setField('first_name')} />
+            <Input placeholder="Last name" value={form.last_name} onChange={setField('last_name')} />
+            <Input placeholder="Company" value={form.company} onChange={setField('company')} />
+            <Input placeholder="City" value={form.city} onChange={setField('city')} />
+            <Input placeholder="Phone / WhatsApp" value={form.phone} onChange={setField('phone')} />
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add to group'}</Button>
+            <span className="text-xs text-ink-500">Existing contacts (same email) are updated, not duplicated.</span>
+          </div>
+        </form>
+      )}
 
       {result && (
         <div className={`mb-4 rounded-lg border p-3 text-xs ${result.error ? 'border-red-200 bg-red-50 text-red-800' : 'border-cream-200 bg-cream-50 text-ink-700'}`}>
@@ -192,7 +234,7 @@ function GroupDetail({ group, notify, onChange }) {
           <tbody className="divide-y divide-cream-100">
             {loading && <tr><td colSpan="6" className="py-4 text-ink-500">Loading…</td></tr>}
             {!loading && recipients.length === 0 && (
-              <tr><td colSpan="6" className="py-4 text-ink-500">No recipients. Upload a CSV to add some.</td></tr>
+              <tr><td colSpan="6" className="py-4 text-ink-500">No recipients yet — add one manually or upload a CSV.</td></tr>
             )}
             {recipients.map((r) => (
               <tr key={r.id} className={r.unsubscribed ? 'opacity-50' : ''}>

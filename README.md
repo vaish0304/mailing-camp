@@ -112,10 +112,13 @@ npm run dev
 
 ## 4. Using it
 
-1. **Groups & Recipients** — create a group (e.g. *"Pune CCTV dealers"*), upload a CSV.
-2. **Compose & Send** — write the subject and HTML body, use `{{first_name}}` etc.
-   for personalisation, **Preview** against a real contact, **Send test** to yourself,
-   then **Send** to the selected groups.
+1. **Groups & Recipients** — create a group (e.g. *"Pune CCTV dealers"*), then add
+   recipients either by **Upload CSV / Excel** or **+ Add manually** (email, name,
+   company, city, phone). Same-email contacts are updated, never duplicated.
+2. **Compose & Send** — pick a **template** (Blank / Test email / Cold intro / Follow-up
+   — edit `frontend/src/templates.js` to change them), tweak the subject and HTML body,
+   use `{{first_name}}` etc. for personalisation, **Preview** against a real contact,
+   **Send test** to yourself, then **Send** to the selected groups.
 3. **History** — watch each campaign send in real time with per-recipient status.
 
 Sending runs in the background in batches of 100 (Resend's batch endpoint), throttled

@@ -137,6 +137,37 @@ router.post('/:id/import', upload.single('file'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// POST /api/groups/:id/recipients  { email, first_name, last_name, company, phone, city }
+// Manually add one recipient (upsert by email) and attach to the group.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+router.post('/:id/recipients', async (req, res, next) => {
+  try {
+    if (!isId(req.params.id)) return res.status(404).json({ error: 'group not found' });
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ error: 'group not found' });
+
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'a valid email is required' });
+
+    const set = {};
+    for (const f of ['first_name', 'last_name', 'company', 'phone', 'city']) {
+      const v = String(req.body?.[f] ?? '').trim();
+      if (v) set[f] = v;
+    }
+
+    const before = await Recipient.findOne({ email }).lean();
+    const r = await Recipient.findOneAndUpdate(
+      { email },
+      { $set: set, $addToSet: { groups: group._id } },
+      { upsert: true, new: true },
+    );
+
+    const created = !before;
+    const addedToGroup = created || !(before.groups || []).some((g) => String(g) === String(group._id));
+    res.status(created ? 201 : 200).json({ recipient: r.toJSON(), created, addedToGroup });
+  } catch (e) { next(e); }
+});
+
 // POST /api/groups/:id/members  { recipientIds: [] }
 router.post('/:id/members', async (req, res, next) => {
   try {

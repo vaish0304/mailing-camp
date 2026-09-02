@@ -177,6 +177,31 @@ await check('webhook updates delivery status', async () => {
   assert(after.sends.find((s) => s.resend_id === rid).status === 'opened', 'status not updated');
 });
 
+await check('manual add recipient to group (upsert + validation)', async () => {
+  const { status, body } = await j(`/api/groups/${groupId}/recipients`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'MANUAL@x.com', first_name: 'Manual', company: 'Hand Traders', city: 'Indore' }),
+  });
+  assert(status === 201 && body.created && body.addedToGroup, JSON.stringify(body));
+  assert(body.recipient.email === 'manual@x.com' && body.recipient.company === 'Hand Traders', JSON.stringify(body.recipient));
+
+  const again = await j(`/api/groups/${groupId}/recipients`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'manual@x.com', phone: '999' }),
+  });
+  assert(again.status === 200 && !again.body.created && !again.body.addedToGroup, JSON.stringify(again.body));
+  assert(again.body.recipient.phone === '999' && again.body.recipient.company === 'Hand Traders', 'blank overwrite');
+
+  const bad = await j(`/api/groups/${groupId}/recipients`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'not-an-email' }),
+  });
+  assert(bad.status === 400, `expected 400 got ${bad.status}`);
+
+  const list = await j(`/api/groups/${groupId}/recipients`);
+  assert(list.body.some((r) => r.email === 'manual@x.com'), 'manual recipient not in group');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 await mongod.stop();
 process.exit(fail ? 1 : 0);
