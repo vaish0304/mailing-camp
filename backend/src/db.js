@@ -23,6 +23,7 @@ const groupSchema = new mongoose.Schema(
     name: { type: String, required: true, unique: true, trim: true },
     description: { type: String, default: null },
     project_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null, index: true },
+    progress_reset_at: { type: Date, default: null },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
 );

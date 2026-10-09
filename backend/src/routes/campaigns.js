@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import { Campaign, CampaignSend, Recipient } from '../db.js';
+import { Campaign, CampaignSend, Group, Recipient } from '../db.js';
 import {
   FROM, REPLY_TO, renderTemplate, sendBatch, withUnsubFooter, unsubscribeUrl,
 } from '../mailer.js';
@@ -13,14 +13,28 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const isId = (v) => mongoose.isValidObjectId(v);
 
 async function recipientsForGroups(groupIds, excludePreviouslySent = false) {
-  const filter = { groups: { $in: groupIds }, unsubscribed: false };
-  if (excludePreviouslySent) {
-    const completedIds = await CampaignSend.distinct('recipient_id', { status: { $in: COMPLETED_STATUSES }, recipient_id: { $ne: null } });
-    if (completedIds.length) filter._id = { $nin: completedIds };
-  }
-  return Recipient.find(filter)
+  const recipients = await Recipient.find({ groups: { $in: groupIds }, unsubscribed: false })
     .sort({ email: 1 })
     .lean();
+  if (!excludePreviouslySent || !recipients.length) return recipients;
+
+  const groups = await Group.find({ _id: { $in: groupIds } }).select('_id progress_reset_at').lean();
+  const resets = new Map(groups.map((group) => [String(group._id), group.progress_reset_at || new Date(0)]));
+  const sentRows = await CampaignSend.find({
+    recipient_id: { $in: recipients.map((recipient) => recipient._id) },
+    status: { $in: COMPLETED_STATUSES },
+  }).select('recipient_id created_at').lean();
+  const sentAt = new Map();
+  for (const row of sentRows) {
+    const id = String(row.recipient_id);
+    const rows = sentAt.get(id) || [];
+    rows.push(row.created_at);
+    sentAt.set(id, rows);
+  }
+  return recipients.filter((recipient) => {
+    const selectedGroups = recipient.groups.map(String).filter((id) => resets.has(id));
+    return selectedGroups.some((groupId) => !(sentAt.get(String(recipient._id)) || []).some((date) => date >= resets.get(groupId)));
+  });
 }
 
 function startOfToday() {

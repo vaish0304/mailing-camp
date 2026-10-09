@@ -58,6 +58,7 @@ export const api = {
   listGroups: (projectId) => req(`/api/groups${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
   createGroup: (name, description, projectId) => req('/api/groups', { method: 'POST', body: { name, description, projectId } }),
   updateGroup: (id, patch) => req(`/api/groups/${id}`, { method: 'PATCH', body: patch }),
+  resetGroupProgress: (id) => req(`/api/groups/${id}/reset-progress`, { method: 'POST' }),
   deleteGroup: (id) => req(`/api/groups/${id}`, { method: 'DELETE' }),
   groupRecipients: (id) => req(`/api/groups/${id}/recipients`),
   addRecipient: (id, recipient) => req(`/api/groups/${id}/recipients`, { method: 'POST', body: recipient }),

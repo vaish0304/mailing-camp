@@ -21,7 +21,10 @@ async function withCounts(groups) {
     ]);
     const ids = activeRecipients.map((recipient) => recipient._id);
     const completed = ids.length
-      ? await CampaignSend.distinct('recipient_id', { recipient_id: { $in: ids }, status: { $in: completedStatuses } })
+      ? await CampaignSend.distinct('recipient_id', {
+        recipient_id: { $in: ids }, status: { $in: completedStatuses },
+        created_at: { $gte: group.progress_reset_at || new Date(0) },
+      })
       : [];
     return { recipient_count: recipientCount, active_recipient_count: ids.length, completed_count: completed.length };
   }));
@@ -72,6 +75,16 @@ router.patch('/:id', async (req, res, next) => {
     if (e.code === 11000) return res.status(409).json({ error: 'A group with that name already exists' });
     next(e);
   }
+});
+
+// POST /api/groups/:id/reset-progress — starts a new send cycle without deleting campaign history.
+router.post('/:id/reset-progress', async (req, res, next) => {
+  try {
+    if (!isId(req.params.id)) return res.status(404).json({ error: 'not found' });
+    const group = await Group.findByIdAndUpdate(req.params.id, { progress_reset_at: new Date() }, { new: true });
+    if (!group) return res.status(404).json({ error: 'not found' });
+    res.json(group.toJSON());
+  } catch (e) { next(e); }
 });
 
 // DELETE /api/groups/:id  (recipients themselves are kept, just detached)
