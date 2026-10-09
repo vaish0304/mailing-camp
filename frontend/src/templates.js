@@ -74,6 +74,67 @@ export const TEMPLATES = [
     ${button('See how it works', 'https://aisales-assistant2.netlify.app/')}
     <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">— Team AI Sales Assistant</p>`),
   },
+  {
+    id: 'wholesale-distribution',
+    name: 'Wholesale & Distribution',
+    subject: '{{company}}: respond to every product enquiry while it is still warm',
+    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
+    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
+      For a distributor, a delayed reply to a WhatsApp product enquiry can mean a lost order.
+      AI Sales Assistant turns your catalogue and price list into fast, consistent quotations — even during busy hours.
+    </p>
+    <div style="margin:0 0 18px;padding:16px 18px;background:#f8f4e8;border-left:4px solid #cc9a2b;border-radius:4px">
+      <p style="margin:0;font-size:14px;line-height:1.6"><strong>Built for channel businesses:</strong> answer price, availability and product questions quickly, while keeping your team focused on closing orders.</p>
+    </div>
+    ${button('See the workflow', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=wholesale')}
+    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">Would a brief 10-minute walkthrough be useful for {{company}}?</p>
+    <p style="font-size:13px;color:#5c6b63;margin:12px 0 0">— Team AI Sales Assistant</p>`),
+  },
+  {
+    id: 'industrial-automation',
+    name: 'Industrial & Automation',
+    subject: 'Faster, more accurate replies to technical product enquiries',
+    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
+    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
+      Technical buyers expect clear answers on specifications, products and commercial details. AI Sales Assistant helps {{company}} respond to WhatsApp enquiries using your approved product information and price data.
+    </p>
+    <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 18px;font-size:14px">
+      <tr><td style="padding:10px 0;border-bottom:1px solid #f3ead4">Use your own catalogue and price list</td></tr>
+      <tr><td style="padding:10px 0;border-bottom:1px solid #f3ead4">Give prospects a prompt, consistent first response</td></tr>
+      <tr><td style="padding:10px 0">Track enquiries so the sales team can follow up</td></tr>
+    </table>
+    ${button('Explore the solution', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=industrial')}
+    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">If faster enquiry handling is a priority this quarter, I would be glad to show you how it works.</p>
+    <p style="font-size:13px;color:#5c6b63;margin:12px 0 0">— Team AI Sales Assistant</p>`),
+  },
+  {
+    id: 'b2b-intro',
+    name: 'B2B Business Intro',
+    subject: 'A simpler way for {{company}} to keep up with WhatsApp enquiries',
+    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
+    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
+      When customer questions arrive across WhatsApp, it is easy for a promising enquiry to wait too long. AI Sales Assistant helps teams reply quickly with the right product and pricing context.
+    </p>
+    <p style="font-size:14px;line-height:1.65;margin:0 0 18px">
+      It is designed to work with the information your business already uses — product catalogues, price lists and your sales workflow — without forcing a complex CRM rollout.
+    </p>
+    ${button('Book a short introduction', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=b2b-intro')}
+    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">Best regards,<br/>Team AI Sales Assistant</p>`),
+  },
+  {
+    id: 'tamil-nadu',
+    name: 'Tamil Nadu Businesses',
+    subject: '{{company}}: make every WhatsApp enquiry easier to manage',
+    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
+    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
+      We are introducing AI Sales Assistant to growing businesses that want to give customers a quicker response without adding avoidable manual work.
+    </p>
+    <p style="font-size:14px;line-height:1.65;margin:0 0 18px">
+      The assistant can use {{company}}'s own product information and price list to support your team with faster WhatsApp quotations and enquiry follow-up.
+    </p>
+    ${button('Request a walkthrough', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=tamil-nadu')}
+    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">— Team AI Sales Assistant</p>`),
+  },
 ];
 
 export const DEFAULT_TEMPLATE_ID = 'test';

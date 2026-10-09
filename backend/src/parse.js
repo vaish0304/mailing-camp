@@ -1,5 +1,5 @@
 import { parse as parseCsv } from 'csv-parse/sync';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx';
 
 /** Canonical recipient fields the tool understands. */
 export const FIELDS = ['email', 'first_name', 'last_name', 'company', 'phone', 'city'];
@@ -9,12 +9,14 @@ export const FIELDS = ['email', 'first_name', 'last_name', 'company', 'phone', '
 const ALIASES = {
   email: 'email',
   emailaddress: 'email',
+  emailid: 'email',
   mail: 'email',
   firstname: 'first_name',
   fname: 'first_name',
   givenname: 'first_name',
   name: 'first_name',
   contactname: 'first_name',
+  contactperson: 'first_name',
   lastname: 'last_name',
   lname: 'last_name',
   surname: 'last_name',
@@ -29,6 +31,7 @@ const ALIASES = {
   organization: 'company',
   phone: 'phone',
   phonenumber: 'phone',
+  contactnumber: 'phone',
   mobile: 'phone',
   mobileno: 'phone',
   contact: 'phone',
@@ -59,7 +62,15 @@ function rowsFromXlsx(buffer) {
   const wb = XLSX.read(buffer, { type: 'buffer' });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   if (!sheet) return [];
-  return XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+  // Some source workbooks use one or more title rows before the actual field
+  // headers. Locate the first row that contains a recognizable email heading.
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+  const headerRow = rawRows.findIndex((row) => row.some((value) => ALIASES[normaliseKey(value)] === 'email'));
+  return XLSX.utils.sheet_to_json(sheet, {
+    range: headerRow >= 0 ? headerRow : 0,
+    defval: '',
+    raw: false,
+  });
 }
 
 function rowsFromCsv(buffer) {
