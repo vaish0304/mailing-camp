@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import mongoose from 'mongoose';
-import { Group, Recipient } from '../db.js';
+import { CampaignSend, Group, Recipient } from '../db.js';
 import { parseRecipientsFile, FIELDS } from '../parse.js';
 
 const router = Router();
@@ -13,10 +13,23 @@ const upload = multer({
 const isId = (v) => mongoose.isValidObjectId(v);
 
 async function withCounts(groups) {
-  const counts = await Promise.all(
-    groups.map((g) => Recipient.countDocuments({ groups: g._id })),
-  );
-  return groups.map((g, i) => ({ ...g.toJSON(), recipient_count: counts[i] }));
+  const completedStatuses = ['sent', 'delivered', 'opened', 'clicked', 'delayed'];
+  const counts = await Promise.all(groups.map(async (group) => {
+    const [recipientCount, activeRecipients] = await Promise.all([
+      Recipient.countDocuments({ groups: group._id }),
+      Recipient.find({ groups: group._id, unsubscribed: false }).select('_id').lean(),
+    ]);
+    const ids = activeRecipients.map((recipient) => recipient._id);
+    const completed = ids.length
+      ? await CampaignSend.distinct('recipient_id', { recipient_id: { $in: ids }, status: { $in: completedStatuses } })
+      : [];
+    return { recipient_count: recipientCount, active_recipient_count: ids.length, completed_count: completed.length };
+  }));
+  return groups.map((group, index) => ({
+    ...group.toJSON(),
+    ...counts[index],
+    remaining_count: Math.max(counts[index].active_recipient_count - counts[index].completed_count, 0),
+  }));
 }
 
 // GET /api/groups

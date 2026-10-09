@@ -56,7 +56,7 @@ export default function Groups({ notify, project }) {
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-ink-500">Audience groups</p><p className="mt-1 font-display text-2xl font-bold">{groups.length}</p></Card>
-        <Card className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-ink-500">Group memberships</p><p className="mt-1 font-display text-2xl font-bold">{groups.reduce((sum, group) => sum + group.recipient_count, 0).toLocaleString()}</p></Card>
+        <Card className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-ink-500">Completed mail progress</p><p className="mt-1 font-display text-2xl font-bold">{groups.reduce((sum, group) => sum + (group.completed_count || 0), 0).toLocaleString()}<span className="text-base font-medium text-ink-500"> / {groups.reduce((sum, group) => sum + (group.active_recipient_count || group.recipient_count), 0).toLocaleString()}</span></p><p className="mt-1 text-xs text-ink-500">Completed / active group memberships</p></Card>
         <Card className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-ink-500">Workspace</p><p className="mt-1 truncate text-sm font-bold">{project.name}</p></Card>
       </div>
     <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
@@ -86,7 +86,7 @@ export default function Groups({ notify, project }) {
             >
               <span>
                 <span className="block text-sm font-semibold">{g.name}</span>
-                <span className="text-xs text-ink-500">{g.recipient_count} recipients</span>
+                <span className="text-xs text-ink-500">{g.completed_count || 0} mailed / {g.active_recipient_count || g.recipient_count} active</span>
               </span>
               <span
                 onClick={(e) => { e.stopPropagation(); removeGroup(g); }}
@@ -189,7 +189,7 @@ function GroupDetail({ group, notify, onChange }) {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-bold">{group.name}</h2>
-          <p className="text-xs text-ink-500">{recipients.length} recipients</p>
+          <p className="text-xs text-ink-500">{group.completed_count || 0} mailed / {group.active_recipient_count || recipients.length} active contacts · {group.remaining_count || 0} not yet mailed</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowAdd((s) => !s)}>

@@ -4,169 +4,40 @@ import { Button, Card, Input, Textarea } from '../ui.jsx';
 import { TEMPLATES, DEFAULT_TEMPLATE_ID } from '../templates.js';
 
 const TOKENS = ['first_name', 'last_name', 'company', 'city', 'phone', 'email'];
-const initial = TEMPLATES.find((t) => t.id === DEFAULT_TEMPLATE_ID) || TEMPLATES[0];
+const initial = TEMPLATES.find((template) => template.id === DEFAULT_TEMPLATE_ID) || TEMPLATES[0];
+const isUrl = (value) => /^https:\/\//i.test(value.trim());
 
 export default function Compose({ notify, onSent, project }) {
-  const [groups, setGroups] = useState([]);
-  const [groupIds, setGroupIds] = useState([]);
-  const [templateId, setTemplateId] = useState(initial.id);
-  const [subject, setSubject] = useState(initial.subject);
-  const [html, setHtml] = useState(initial.html);
-  const [preview, setPreview] = useState(null);
-  const [testEmail, setTestEmail] = useState('');
-  const [busy, setBusy] = useState('');
-  const [limits, setLimits] = useState(null);
-  const [targetLimit, setTargetLimit] = useState(100);
+  const [groups, setGroups] = useState([]); const [groupIds, setGroupIds] = useState([]);
+  const [templateId, setTemplateId] = useState(initial.id); const [subject, setSubject] = useState(initial.subject); const [html, setHtml] = useState(initial.html);
+  const [preview, setPreview] = useState(null); const [testEmail, setTestEmail] = useState(''); const [busy, setBusy] = useState('');
+  const [limits, setLimits] = useState(null); const [targetLimit, setTargetLimit] = useState(100); const [onlyUnsent, setOnlyUnsent] = useState(true);
+  const [imageUrl, setImageUrl] = useState(''); const [imageAlt, setImageAlt] = useState(''); const [videoUrl, setVideoUrl] = useState(''); const [posterUrl, setPosterUrl] = useState('');
 
-  useEffect(() => {
-    Promise.all([api.listGroups(project.id), api.campaignLimits()])
-      .then(([rows, caps]) => { setGroups(rows); setLimits(caps); setTargetLimit(Math.min(100, caps.remaining)); })
-      .catch((e) => notify(e.message, 'error'));
-  }, [notify, project.id]);
+  const load = () => Promise.all([api.listGroups(project.id), api.campaignLimits()]).then(([rows, caps]) => { setGroups(rows); setLimits(caps); setTargetLimit((value) => Math.min(value, caps.remaining)); });
+  useEffect(() => { load().catch((error) => notify(error.message, 'error')); }, [project.id]);
+  const selected = groups.filter((group) => groupIds.includes(group.id));
+  const selectedCount = selected.reduce((sum, group) => sum + group.recipient_count, 0);
+  const progress = selected.reduce((sum, group) => sum + group.completed_count, 0);
+  const available = selected.reduce((sum, group) => sum + (onlyUnsent ? group.remaining_count : group.active_recipient_count), 0);
+  function toggle(id) { setGroupIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]); setPreview(null); }
+  function applyTemplate(id) { const template = TEMPLATES.find((item) => item.id === id); if (!template) return; if ((subject.trim() || html.trim()) && !confirm(`Replace the current message with the "${template.name}" template?`)) return; setTemplateId(id); setSubject(template.subject); setHtml(template.html); setPreview(null); }
+  function insertImage() { if (!isUrl(imageUrl)) return notify('Use a public HTTPS image URL', 'error'); setHtml((value) => `${value}\n<img src="${imageUrl.trim()}" alt="${imageAlt.trim() || 'Campaign image'}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0" />`); setImageUrl(''); setImageAlt(''); }
+  function insertVideo() { if (!isUrl(videoUrl) || !isUrl(posterUrl)) return notify('Use public HTTPS URLs for both the video and poster image', 'error'); setHtml((value) => `${value}\n<a href="${videoUrl.trim()}" target="_blank" style="display:block;text-decoration:none"><img src="${posterUrl.trim()}" alt="Watch video" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0" /></a>`); setVideoUrl(''); setPosterUrl(''); }
+  async function doPreview() { if (!groupIds.length) return notify('Pick at least one group', 'error'); setBusy('preview'); try { setPreview(await api.previewCampaign({ subject, html, groupIds, excludePreviouslySent: onlyUnsent })); } catch (error) { notify(error.message, 'error'); } setBusy(''); }
+  async function doTest() { if (!testEmail.trim()) return notify('Enter a test email', 'error'); setBusy('test'); try { await api.testCampaign({ subject, html, email: testEmail.trim() }); notify(`Test sent to ${testEmail}`); } catch (error) { notify(error.message, 'error'); } setBusy(''); }
+  async function doSend() { if (!subject.trim() || !html.trim() || !groupIds.length) return notify('Subject, body and at least one group are required', 'error'); if (!confirm(`Start a batch of up to ${targetLimit} eligible contacts?`)) return; setBusy('send'); try { const result = await api.sendCampaign({ subject, html, groupIds, projectId: project.id, targetLimit, excludePreviouslySent: onlyUnsent }); notify(`Campaign started for ${result.totalRecipients} contacts. ${result.deferredCount ? `${result.deferredCount} stay available for the next batch.` : ''}`); load(); onSent?.(); } catch (error) { notify(error.message, 'error'); } setBusy(''); }
 
-  const selectedCount = groups
-    .filter((g) => groupIds.includes(g.id))
-    .reduce((n, g) => n + g.recipient_count, 0);
-
-  function toggle(id) {
-    setGroupIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
-    setPreview(null);
-  }
-
-  function applyTemplate(id) {
-    setTemplateId(id);
-    const t = TEMPLATES.find((x) => x.id === id);
-    if (!t) return;
-    const dirty = subject.trim() || html.trim();
-    if (dirty && !confirm(`Replace the current subject and body with the "${t.name}" template?`)) return;
-    setSubject(t.subject);
-    setHtml(t.html);
-    setPreview(null);
-  }
-
-  async function doPreview() {
-    if (!groupIds.length) return notify('Pick at least one group', 'error');
-    setBusy('preview');
-    try {
-      setPreview(await api.previewCampaign({ subject, html, groupIds }));
-    } catch (e) { notify(e.message, 'error'); }
-    setBusy('');
-  }
-
-  async function doTest() {
-    if (!testEmail.trim()) return notify('Enter a test email', 'error');
-    setBusy('test');
-    try {
-      await api.testCampaign({ subject, html, email: testEmail.trim() });
-      notify(`Test sent to ${testEmail}`);
-    } catch (e) { notify(e.message, 'error'); }
-    setBusy('');
-  }
-
-  async function doSend() {
-    if (!subject.trim() || !html.trim() || !groupIds.length) {
-      return notify('Subject, body and at least one group are required', 'error');
-    }
-    if (!confirm(`Start a batch of up to ${targetLimit} eligible recipient(s) for "${subject}" across ${groupIds.length} group(s)?`)) return;
-    setBusy('send');
-    try {
-      const r = await api.sendCampaign({ subject, html, groupIds, projectId: project.id, targetLimit });
-      notify(`Campaign started: ${r.totalRecipients} recipients. ${r.deferredCount ? `${r.deferredCount} remain for a later batch.` : 'All selected contacts are in this batch.'}`);
-      onSent?.();
-    } catch (e) { notify(e.message, 'error'); }
-    setBusy('');
-  }
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
-      <Card className="space-y-4 p-5">
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-ink-700">Template gallery</label>
-          <div className="flex flex-wrap gap-1.5">
-            {TEMPLATES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => applyTemplate(t.id)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                  templateId === t.id
-                    ? 'border-forest-700 bg-forest-700 text-cream-50'
-                    : 'border-cream-200 text-ink-700 hover:bg-cream-100'
-                }`}
-              >
-                {t.name}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-ink-500">Choose a design, then tailor the message and preview it against a real contact.</p>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-ink-700">Subject</label>
-          <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Reply to every WhatsApp inquiry in seconds" />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-ink-700">HTML body</label>
-          <Textarea rows={14} value={html} onChange={(e) => setHtml(e.target.value)} className="font-mono text-xs" />
-          <p className="mt-1 text-xs text-ink-500">
-            Personalisation tokens:{' '}
-            {TOKENS.map((t) => (
-              <button key={t} onClick={() => setHtml((h) => `${h}{{${t}}}`)} className="mr-1 rounded bg-cream-100 px-1.5 py-0.5 font-mono text-forest-700 hover:bg-cream-200">
-                {`{{${t}}}`}
-              </button>
-            ))}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 border-t border-cream-200 pt-4">
-          <Button variant="outline" onClick={doPreview} disabled={busy === 'preview'}>
-            {busy === 'preview' ? 'Loading…' : 'Preview'}
-          </Button>
-          <Input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="your test email" className="max-w-[220px]" />
-          <Button variant="outline" onClick={doTest} disabled={busy === 'test'}>
-            {busy === 'test' ? 'Sending…' : 'Send test'}
-          </Button>
-          <div className="flex-1" />
-          <Button variant="gold" onClick={doSend} disabled={busy === 'send'}>
-            {busy === 'send' ? 'Starting…' : `Send to ${selectedCount}`}
-          </Button>
-        </div>
-      </Card>
-
-      <div className="space-y-4">
-        <Card className="border-forest-700/15 bg-forest-950 p-4 text-cream-50">
-          <div className="flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-wide text-cream-200/70">Daily send safety</p><p className="mt-1 text-2xl font-bold">{limits ? `${limits.remaining} left` : 'Loading…'}</p><p className="mt-1 text-xs text-cream-200/70">of {limits?.dailyLimit || 100} emails today · one email every {Math.round((limits?.sendGapMs || 1000) / 1000)}s</p></div><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{limits?.used || 0} sent</span></div>
-          <label className="mt-4 block text-xs font-semibold text-cream-100">This batch</label>
-          <Input type="number" min="1" max={Math.min(100, limits?.remaining || 100)} value={targetLimit} onChange={(e) => setTargetLimit(Math.min(Math.max(Number(e.target.value) || 1, 1), Math.min(100, limits?.remaining || 100)))} className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-cream-200/50" />
-          <p className="mt-2 text-xs text-cream-200/70">Only the first eligible contacts, ordered by email, will enter this batch. Use a smaller batch to test a segment.</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="mb-2 text-sm font-bold text-ink-700">Audience</h3>
-          {groups.length === 0 && <p className="text-sm text-ink-500">No groups — create one first.</p>}
-          <div className="space-y-1">
-            {groups.map((g) => (
-              <label key={g.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm hover:bg-cream-50">
-                <input type="checkbox" checked={groupIds.includes(g.id)} onChange={() => toggle(g.id)} />
-                <span className="flex-1">{g.name}</span>
-                <span className="text-xs text-ink-500">{g.recipient_count}</span>
-              </label>
-            ))}
-          </div>
-          {groupIds.length > 0 && (
-            <p className="mt-2 border-t border-cream-200 pt-2 text-xs text-ink-500">
-              {selectedCount} group memberships selected. Duplicates and unsubscribed contacts are removed before the {targetLimit}-contact batch is created.
-            </p>
-          )}
-        </Card>
-
-        {preview && (
-          <Card className="p-4">
-            <h3 className="mb-2 text-sm font-bold text-ink-700">Preview</h3>
-            <p className="text-xs text-ink-500">Rendered for {preview.sampleRecipient?.email} · {preview.recipientCount} will receive it</p>
-            <p className="mt-2 text-sm font-semibold">{preview.renderedSubject || <span className="text-red-600">(empty subject)</span>}</p>
-            <div className="mt-2 max-h-72 overflow-auto rounded border border-cream-200 bg-white p-3 text-sm" dangerouslySetInnerHTML={{ __html: preview.renderedHtml }} />
-          </Card>
-        )}
-      </div>
-    </div>
-  );
+  return <div className="space-y-6"><div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
+    <Card className="space-y-4 p-5"><div><label className="mb-2 block text-sm font-semibold text-ink-700">Template gallery</label><div className="flex flex-wrap gap-1.5">{TEMPLATES.map((template) => <button key={template.id} onClick={() => applyTemplate(template.id)} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${templateId === template.id ? 'border-forest-700 bg-forest-700 text-cream-50' : 'border-cream-200 text-ink-700 hover:bg-cream-100'}`}>{template.name}</button>)}</div></div>
+      <div><label className="mb-1 block text-sm font-semibold text-ink-700">Subject</label><Input value={subject} onChange={(event) => setSubject(event.target.value)} /></div>
+      <div><label className="mb-1 block text-sm font-semibold text-ink-700">HTML body</label><Textarea rows={16} value={html} onChange={(event) => setHtml(event.target.value)} className="font-mono text-xs" /><p className="mt-2 text-xs text-ink-500">Personalisation: {TOKENS.map((token) => <button key={token} onClick={() => setHtml((value) => `${value}{{${token}}}`)} className="mr-1 rounded bg-cream-100 px-1.5 py-0.5 font-mono text-forest-700">{`{{${token}}}`}</button>)}</p></div>
+      <div className="grid gap-2 border-t border-cream-200 pt-4 md:grid-cols-2"><div className="rounded-lg bg-cream-50 p-3"><p className="mb-2 text-xs font-bold text-ink-700">Image block</p><div className="flex gap-2"><Input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://image-host/..." /><Button type="button" variant="outline" onClick={insertImage}>Insert</Button></div><Input className="mt-2" value={imageAlt} onChange={(event) => setImageAlt(event.target.value)} placeholder="Accessible image description" /></div><div className="rounded-lg bg-cream-50 p-3"><p className="mb-2 text-xs font-bold text-ink-700">Video card</p><Input value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} placeholder="HTTPS video landing-page URL" /><div className="mt-2 flex gap-2"><Input value={posterUrl} onChange={(event) => setPosterUrl(event.target.value)} placeholder="HTTPS poster image URL" /><Button type="button" variant="outline" onClick={insertVideo}>Insert</Button></div></div></div>
+      <div className="flex flex-wrap items-center gap-2 border-t border-cream-200 pt-4"><Button variant="outline" onClick={doPreview} disabled={busy === 'preview'}>{busy === 'preview' ? 'Rendering…' : 'Wide preview'}</Button><Input value={testEmail} onChange={(event) => setTestEmail(event.target.value)} placeholder="your test email" className="max-w-[230px]" /><Button variant="outline" onClick={doTest} disabled={busy === 'test'}>{busy === 'test' ? 'Sending…' : 'Send test'}</Button><div className="flex-1" /><Button variant="gold" onClick={doSend} disabled={busy === 'send'}>{busy === 'send' ? 'Starting…' : `Send batch of ${targetLimit}`}</Button></div>
+    </Card>
+    <div className="space-y-4"><Card className="bg-forest-950 p-4 text-cream-50"><p className="text-xs font-bold uppercase tracking-wide text-cream-200/70">Daily send safety</p><div className="mt-1 flex items-end justify-between"><p className="text-2xl font-bold">{limits ? `${limits.remaining} left` : 'Loading…'}</p><span className="text-xs">{limits?.used || 0}/{limits?.dailyLimit || 100} today</span></div><p className="mt-1 text-xs text-cream-200/70">One email every {Math.round((limits?.sendGapMs || 1000) / 1000)}s.</p><label className="mt-4 flex gap-2 text-xs"><input type="checkbox" checked={onlyUnsent} onChange={(event) => { setOnlyUnsent(event.target.checked); setPreview(null); }} /> Start with contacts not mailed before</label><Input type="number" min="1" max={Math.min(100, limits?.remaining || 100)} value={targetLimit} onChange={(event) => setTargetLimit(Math.min(Math.max(Number(event.target.value) || 1, 1), Math.min(100, limits?.remaining || 100)))} className="mt-3 border-white/20 bg-white/10 text-white" /></Card>
+      <Card className="p-4"><h3 className="mb-2 text-sm font-bold text-ink-700">Audience</h3><div className="space-y-1">{groups.map((group) => <label key={group.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm hover:bg-cream-50"><input type="checkbox" checked={groupIds.includes(group.id)} onChange={() => toggle(group.id)} /><span className="flex-1">{group.name}</span><span className="text-right text-xs text-ink-500"><b>{group.completed_count || 0}</b>/{group.active_recipient_count || group.recipient_count}</span></label>)}</div>{groupIds.length > 0 && <p className="mt-3 border-t border-cream-200 pt-2 text-xs text-ink-500">{progress} completed across selected group memberships. {available} contacts are eligible under the current repeat rule. Duplicates are removed before sending.</p>}</Card></div>
+  </div>
+  {preview && <Card className="p-6"><div className="mb-4 flex flex-wrap items-end justify-between gap-2"><div><h2 className="font-display text-xl font-bold">Full-width email preview</h2><p className="text-sm text-ink-500">Rendered for {preview.sampleRecipient?.email} · {preview.recipientCount} eligible contacts will receive it</p></div><p className="text-sm font-bold">{preview.renderedSubject}</p></div><div className="min-h-[560px] overflow-auto rounded-xl border border-cream-200 bg-[#f4f4f4] p-6"><div className="mx-auto max-w-[720px] bg-white p-6 shadow-sm" dangerouslySetInnerHTML={{ __html: preview.renderedHtml }} /></div><p className="mt-3 text-xs text-ink-500">Email clients can block remote images until a recipient allows them. Video is sent as a clickable poster image because embedded autoplay video is not consistently supported by Gmail and Outlook.</p></Card>}
+  </div>;
 }

@@ -135,6 +135,21 @@ export const TEMPLATES = [
     ${button('Request a walkthrough', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=tamil-nadu')}
     <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">— Team AI Sales Assistant</p>`),
   },
+  {
+    id: 'whatsapp-speed-creative',
+    name: 'WhatsApp Speed Creative',
+    subject: '{{company}}: every late WhatsApp reply can cost an order',
+    html: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#14231d;background:#ffffff">
+  <img src="https://mailing-camp.vercel.app/campaign-media/whatsapp-distributor-phone-v1.png" alt="Customer wait nahi karta. Late reply equals lost order. AI Sales Assistant helps distributors reply faster on WhatsApp." width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none" />
+  <div style="padding:28px 28px 8px">
+    <p style="font-size:17px;line-height:1.55;margin:0 0 14px">Hi {{first_name}},</p>
+    <p style="font-size:15px;line-height:1.65;margin:0 0 18px">For {{company}}, every product enquiry deserves a quick, accurate reply. AI Sales Assistant uses your catalogue and price list to help your team answer stock, price and dispatch questions on WhatsApp.</p>
+    ${button('Request a demo on WhatsApp', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=whatsapp-speed-creative')}
+    <p style="font-size:13px;line-height:1.55;color:#5c6b63;margin:22px 0 0">Reply to this email to arrange a short walkthrough for your sales team.</p>
+    <p style="font-size:13px;color:#5c6b63;margin:12px 0 0">— Team AI Sales Assistant</p>
+  </div>
+</div>`,
+  },
 ];
 
 export const DEFAULT_TEMPLATE_ID = 'test';

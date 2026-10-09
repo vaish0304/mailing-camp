@@ -8,11 +8,17 @@ import {
 const router = Router();
 const DAILY_SEND_LIMIT = Math.min(Math.max(Number(process.env.DAILY_SEND_LIMIT) || 100, 1), 10000);
 const SEND_GAP_MS = Math.max(Number(process.env.BATCH_DELAY_MS) || 1000, 1000);
+const COMPLETED_STATUSES = ['sent', 'delivered', 'opened', 'clicked', 'delayed'];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const isId = (v) => mongoose.isValidObjectId(v);
 
-async function recipientsForGroups(groupIds) {
-  return Recipient.find({ groups: { $in: groupIds }, unsubscribed: false })
+async function recipientsForGroups(groupIds, excludePreviouslySent = false) {
+  const filter = { groups: { $in: groupIds }, unsubscribed: false };
+  if (excludePreviouslySent) {
+    const completedIds = await CampaignSend.distinct('recipient_id', { status: { $in: COMPLETED_STATUSES }, recipient_id: { $ne: null } });
+    if (completedIds.length) filter._id = { $nin: completedIds };
+  }
+  return Recipient.find(filter)
     .sort({ email: 1 })
     .lean();
 }
@@ -24,7 +30,7 @@ function startOfToday() {
 
 async function dailyUsage() {
   return CampaignSend.countDocuments({
-    status: { $in: ['sent', 'delivered', 'opened', 'clicked', 'delayed'] },
+    status: { $in: COMPLETED_STATUSES },
     created_at: { $gte: startOfToday() },
   });
 }
@@ -78,12 +84,12 @@ router.delete('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /api/campaigns/preview  { subject, html, groupIds }
+// POST /api/campaigns/preview  { subject, html, groupIds, excludePreviouslySent? }
 router.post('/preview', async (req, res, next) => {
   try {
     const groupIds = (req.body?.groupIds || []).filter(isId);
     if (!groupIds.length) return res.status(400).json({ error: 'groupIds required' });
-    const recipients = await recipientsForGroups(groupIds);
+    const recipients = await recipientsForGroups(groupIds, Boolean(req.body?.excludePreviouslySent));
     const sample = recipients[0] || {
       email: 'sample@example.com', first_name: 'Rahul', company: 'Sharma Electronics', city: 'Pune',
     };
@@ -111,7 +117,7 @@ router.post('/test', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /api/campaigns  { subject, html, groupIds, projectId?, targetLimit? }
+// POST /api/campaigns  { subject, html, groupIds, projectId?, targetLimit?, excludePreviouslySent? }
 router.post('/', async (req, res, next) => {
   try {
     const subject = String(req.body?.subject || '').trim();
@@ -122,8 +128,9 @@ router.post('/', async (req, res, next) => {
     if (!html) return res.status(400).json({ error: 'html body is required' });
     if (!groupIds.length) return res.status(400).json({ error: 'select at least one group' });
 
-    const audience = await recipientsForGroups(groupIds);
-    if (!audience.length) return res.status(422).json({ error: 'those groups have no active recipients' });
+    const excludePreviouslySent = req.body?.excludePreviouslySent !== false;
+    const audience = await recipientsForGroups(groupIds, excludePreviouslySent);
+    if (!audience.length) return res.status(422).json({ error: excludePreviouslySent ? 'All active contacts in those groups have already been mailed' : 'those groups have no active recipients' });
     const usedToday = await dailyUsage();
     const remainingToday = Math.max(DAILY_SEND_LIMIT - usedToday, 0);
     if (!remainingToday) return res.status(429).json({ error: `Daily limit of ${DAILY_SEND_LIMIT} emails has been reached. Try again tomorrow.` });
@@ -149,6 +156,7 @@ router.post('/', async (req, res, next) => {
     res.status(202).json({
       id: String(campaign._id), status: 'sending', totalRecipients: recipients.length,
       audienceCount: audience.length, deferredCount: campaign.deferred_count,
+      excludesPreviouslySent: excludePreviouslySent,
       dailyRemainingAfterStart: Math.max(remainingToday - recipients.length, 0),
     });
   } catch (e) { next(e); }
