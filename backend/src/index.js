@@ -9,12 +9,24 @@ import groupsRouter from './routes/groups.js';
 import recipientsRouter from './routes/recipients.js';
 import campaignsRouter from './routes/campaigns.js';
 import hooksRouter from './routes/hooks.js';
+import projectsRouter from './routes/projects.js';
 
 const app = express();
 app.set('trust proxy', 1);
 
-const origins = (process.env.CORS_ORIGIN || '*').split(',').map((s) => s.trim());
-app.use(cors({ origin: origins.includes('*') ? true : origins }));
+// Accept a comma-separated list; tolerate trailing slashes / casing so a
+// value like "https://app.vercel.app/" still matches the browser's Origin.
+const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+  .split(',')
+  .map((s) => s.trim().replace(/\/+$/, '').toLowerCase())
+  .filter(Boolean);
+const allowAllOrigins = allowedOrigins.includes('*');
+app.use(cors({
+  origin(origin, cb) {
+    if (allowAllOrigins || !origin) return cb(null, true);
+    cb(null, allowedOrigins.includes(origin.replace(/\/+$/, '').toLowerCase()));
+  },
+}));
 
 // Webhooks need the raw body for signature verification -> mount before json()
 app.use('/api/webhooks', express.raw({ type: '*/*', limit: '1mb' }), hooksRouter);
@@ -51,6 +63,7 @@ app.post('/api/unsubscribe', express.urlencoded({ extended: false }), async (req
 
 // --- protected API ---
 app.use('/api/groups', requireAuth, groupsRouter);
+app.use('/api/projects', requireAuth, projectsRouter);
 app.use('/api/recipients', requireAuth, recipientsRouter);
 app.use('/api/campaigns', requireAuth, campaignsRouter);
 

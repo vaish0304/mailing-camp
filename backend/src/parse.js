@@ -52,6 +52,10 @@ function normaliseKey(k) {
   return String(k || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+function customKey(k) {
+  return String(k || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
 function looksLikeXlsx(filename, buffer) {
   if (/\.xlsx?$/i.test(filename || '')) return true;
   // XLSX is a zip -> starts with "PK"; legacy XLS starts with 0xD0CF11E0
@@ -100,6 +104,7 @@ export function parseRecipientsFile(buffer, filename) {
     const lineNo = i + 2; // +1 for header, +1 for 1-indexing
 
     const mapped = {};
+    const custom_fields = {};
     for (const [key, value] of Object.entries(row)) {
       let canonical = headerMap[key];
       if (canonical === undefined) {
@@ -107,8 +112,12 @@ export function parseRecipientsFile(buffer, filename) {
         headerMap[key] = canonical;
         if (!canonical && String(key).trim()) unmappedHeaders.add(key);
       }
-      if (!canonical) continue;
       const v = String(value ?? '').trim();
+      if (!canonical) {
+        const keyName = customKey(key);
+        if (v && keyName) custom_fields[keyName] = v;
+        continue;
+      }
       // don't overwrite a real value with a blank from a duplicate-mapped column
       if (v && !mapped[canonical]) mapped[canonical] = v;
     }
@@ -135,6 +144,7 @@ export function parseRecipientsFile(buffer, filename) {
       company: mapped.company || null,
       phone: mapped.phone || null,
       city: mapped.city || null,
+      custom_fields,
     });
   });
 

@@ -22,6 +22,7 @@ const groupSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true, trim: true },
     description: { type: String, default: null },
+    project_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null, index: true },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
 );
@@ -34,6 +35,7 @@ const recipientSchema = new mongoose.Schema(
     company: { type: String, default: null },
     phone: { type: String, default: null },
     city: { type: String, default: null },
+    custom_fields: { type: Map, of: String, default: {} },
     unsubscribed: { type: Boolean, default: false },
     groups: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group', index: true }],
   },
@@ -47,8 +49,11 @@ const campaignSchema = new mongoose.Schema(
     from_email: { type: String, required: true },
     reply_to: { type: String, default: null },
     group_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }],
+    project_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null, index: true },
     status: { type: String, default: 'draft' }, // draft | sending | sent | partial | failed
     total_recipients: { type: Number, default: 0 },
+    audience_count: { type: Number, default: 0 },
+    deferred_count: { type: Number, default: 0 },
     sent_count: { type: Number, default: 0 },
     failed_count: { type: Number, default: 0 },
     error: { type: String, default: null },
@@ -69,6 +74,17 @@ const campaignSendSchema = new mongoose.Schema(
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
 );
 
+const projectSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, unique: true, trim: true },
+    description: { type: String, default: null },
+    color: { type: String, default: '#165943' },
+    is_default: { type: Boolean, default: false },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
+);
+
+export const Project = mongoose.model('Project', projectSchema);
 export const Group = mongoose.model('Group', groupSchema);
 export const Recipient = mongoose.model('Recipient', recipientSchema);
 export const Campaign = mongoose.model('Campaign', campaignSchema);
@@ -79,6 +95,7 @@ export async function initDb() {
     serverSelectionTimeoutMS: 10000,
   });
   await Promise.all([
+    Project.syncIndexes(),
     Group.syncIndexes(),
     Recipient.syncIndexes(),
     Campaign.syncIndexes(),

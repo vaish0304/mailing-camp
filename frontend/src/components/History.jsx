@@ -2,15 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { Badge, Button, Card } from '../ui.jsx';
 
-export default function History({ notify }) {
+export default function History({ notify, project }) {
   const [campaigns, setCampaigns] = useState([]);
   const [open, setOpen] = useState(null);
   const [detail, setDetail] = useState(null);
 
   const load = useCallback(async () => {
-    try { setCampaigns(await api.listCampaigns()); }
+    try {
+      const rows = await api.listCampaigns();
+      setCampaigns(rows.filter((campaign) => !campaign.project_id || campaign.project_id === project.id));
+    }
     catch (e) { notify(e.message, 'error'); }
-  }, [notify]);
+  }, [notify, project.id]);
 
   useEffect(() => { load(); }, [load]);
 

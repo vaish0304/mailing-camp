@@ -20,9 +20,10 @@ async function withCounts(groups) {
 }
 
 // GET /api/groups
-router.get('/', async (_req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const groups = await Group.find().sort({ created_at: -1 });
+    const filter = isId(req.query.projectId) ? { project_id: req.query.projectId } : {};
+    const groups = await Group.find(filter).sort({ created_at: -1 });
     res.json(await withCounts(groups));
   } catch (e) { next(e); }
 });
@@ -34,7 +35,8 @@ router.post('/', async (req, res, next) => {
     if (!name) return res.status(400).json({ error: 'name is required' });
     const exists = await Group.findOne({ name });
     if (exists) return res.status(409).json({ error: 'A group with that name already exists' });
-    const g = await Group.create({ name, description: String(req.body?.description || '').trim() || null });
+    const project_id = isId(req.body?.projectId) ? req.body.projectId : null;
+    const g = await Group.create({ name, project_id, description: String(req.body?.description || '').trim() || null });
     res.status(201).json({ ...g.toJSON(), recipient_count: 0 });
   } catch (e) {
     if (e.code === 11000) return res.status(409).json({ error: 'A group with that name already exists' });
@@ -106,6 +108,7 @@ router.post('/:id/import', upload.single('file'), async (req, res, next) => {
       for (const f of ['first_name', 'last_name', 'company', 'phone', 'city']) {
         if (r[f]) set[f] = r[f];
       }
+      if (Object.keys(r.custom_fields || {}).length) set.custom_fields = r.custom_fields;
 
       const result = await Recipient.findOneAndUpdate(
         { email: r.email },
@@ -153,6 +156,15 @@ router.post('/:id/recipients', async (req, res, next) => {
     for (const f of ['first_name', 'last_name', 'company', 'phone', 'city']) {
       const v = String(req.body?.[f] ?? '').trim();
       if (v) set[f] = v;
+    }
+    if (req.body?.custom_fields && typeof req.body.custom_fields === 'object' && !Array.isArray(req.body.custom_fields)) {
+      const custom_fields = {};
+      for (const [key, value] of Object.entries(req.body.custom_fields)) {
+        const cleanKey = String(key).trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+        const cleanValue = String(value ?? '').trim();
+        if (cleanKey && cleanValue) custom_fields[cleanKey] = cleanValue;
+      }
+      if (Object.keys(custom_fields).length) set.custom_fields = custom_fields;
     }
 
     const before = await Recipient.findOne({ email }).lean();

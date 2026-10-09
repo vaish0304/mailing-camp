@@ -14,7 +14,9 @@ services:
       - key: NODE_VERSION
         value: "20"
       - key: BATCH_DELAY_MS
-        value: "700"
+        value: "1000"
+      - key: DAILY_SEND_LIMIT
+        value: "100"
       - key: MONGODB_URI
         sync: false
       - key: PUBLIC_BASE_URL

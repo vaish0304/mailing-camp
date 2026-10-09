@@ -24,7 +24,8 @@ const BASE_URL = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
 export function renderTemplate(str, recipient) {
   if (!str) return str;
   return str.replace(/\{\{\s*([a-zA-Z_]+)\s*\}\}/g, (_, key) => {
-    const v = recipient?.[key.toLowerCase()];
+    const token = key.toLowerCase();
+    const v = recipient?.[token] ?? recipient?.custom_fields?.[token];
     return v == null ? '' : String(v);
   });
 }

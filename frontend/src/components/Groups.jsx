@@ -14,7 +14,7 @@ function downloadTemplate() {
   URL.revokeObjectURL(a.href);
 }
 
-export default function Groups({ notify }) {
+export default function Groups({ notify, project }) {
   const [groups, setGroups] = useState([]);
   const [selected, setSelected] = useState(null);
   const [name, setName] = useState('');
@@ -23,19 +23,19 @@ export default function Groups({ notify }) {
   async function load() {
     setLoading(true);
     try {
-      const g = await api.listGroups();
+      const g = await api.listGroups(project.id);
       setGroups(g);
       if (selected) setSelected(g.find((x) => x.id === selected.id) || null);
     } catch (e) { notify(e.message, 'error'); }
     setLoading(false);
   }
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { setSelected(null); load(); /* eslint-disable-next-line */ }, [project.id]);
 
   async function createGroup(e) {
     e.preventDefault();
     if (!name.trim()) return;
     try {
-      await api.createGroup(name.trim());
+      await api.createGroup(name.trim(), '', project.id);
       setName('');
       notify('Group created');
       load();
@@ -53,10 +53,17 @@ export default function Groups({ notify }) {
   }
 
   return (
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-ink-500">Audience groups</p><p className="mt-1 font-display text-2xl font-bold">{groups.length}</p></Card>
+        <Card className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-ink-500">Group memberships</p><p className="mt-1 font-display text-2xl font-bold">{groups.reduce((sum, group) => sum + group.recipient_count, 0).toLocaleString()}</p></Card>
+        <Card className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-ink-500">Workspace</p><p className="mt-1 truncate text-sm font-bold">{project.name}</p></Card>
+      </div>
     <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
       <div className="space-y-4">
         <Card className="p-4">
-          <h2 className="mb-3 text-sm font-bold text-ink-700">New group</h2>
+          <h2 className="mb-1 text-sm font-bold text-ink-700">New audience group</h2>
+          <p className="mb-3 text-xs text-ink-500">Keep segments specific enough to target with one message.</p>
           <form onSubmit={createGroup} className="flex gap-2">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Pune CCTV dealers" />
             <Button type="submit">Add</Button>
@@ -97,6 +104,7 @@ export default function Groups({ notify }) {
           ? <GroupDetail group={selected} notify={notify} onChange={load} />
           : <Card className="grid h-full place-items-center p-10 text-sm text-ink-500">Select a group to view recipients and import a CSV.</Card>}
       </div>
+    </div>
     </div>
   );
 }

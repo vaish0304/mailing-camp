@@ -23,12 +23,22 @@ async function req(path, { method = 'GET', body, form } = {}) {
     headers['Content-Type'] = 'application/json';
     payload = JSON.stringify(body);
   }
-  const res = await fetch(`${base}${path}`, { method, headers, body: payload });
+  let res;
+  try {
+    res = await fetch(`${base}${path}`, { method, headers, body: payload });
+  } catch (networkErr) {
+    console.error(`[api] ${method} ${path} — network/CORS failure`, networkErr);
+    const err = new Error(`Can't reach ${base} (network or CORS). Check the backend URL in Settings and CORS_ORIGIN on the server.`);
+    err.status = 0;
+    throw err;
+  }
   const text = await res.text();
   let data;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!res.ok) {
-    const msg = (data && data.error) || res.statusText || 'Request failed';
+    let msg = (data && data.error) || res.statusText || 'Request failed';
+    if (res.status === 401) msg = 'Unauthorized — open Settings and enter the admin token.';
+    console.error(`[api] ${method} ${path} → ${res.status}`, data);
     const err = new Error(msg);
     err.status = res.status;
     err.data = data;
@@ -40,8 +50,13 @@ async function req(path, { method = 'GET', body, form } = {}) {
 export const api = {
   health: () => req('/api/health'),
 
-  listGroups: () => req('/api/groups'),
-  createGroup: (name, description) => req('/api/groups', { method: 'POST', body: { name, description } }),
+  listProjects: () => req('/api/projects'),
+  createProject: (body) => req('/api/projects', { method: 'POST', body }),
+  updateProject: (id, body) => req(`/api/projects/${id}`, { method: 'PATCH', body }),
+  deleteProject: (id) => req(`/api/projects/${id}`, { method: 'DELETE' }),
+
+  listGroups: (projectId) => req(`/api/groups${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+  createGroup: (name, description, projectId) => req('/api/groups', { method: 'POST', body: { name, description, projectId } }),
   updateGroup: (id, patch) => req(`/api/groups/${id}`, { method: 'PATCH', body: patch }),
   deleteGroup: (id) => req(`/api/groups/${id}`, { method: 'DELETE' }),
   groupRecipients: (id) => req(`/api/groups/${id}/recipients`),
@@ -58,6 +73,7 @@ export const api = {
   updateRecipient: (id, patch) => req(`/api/recipients/${id}`, { method: 'PATCH', body: patch }),
 
   listCampaigns: () => req('/api/campaigns'),
+  campaignLimits: () => req('/api/campaigns/limits'),
   getCampaign: (id) => req(`/api/campaigns/${id}`),
   deleteCampaign: (id) => req(`/api/campaigns/${id}`, { method: 'DELETE' }),
   previewCampaign: (body) => req('/api/campaigns/preview', { method: 'POST', body }),

@@ -6,7 +6,7 @@ import { TEMPLATES, DEFAULT_TEMPLATE_ID } from '../templates.js';
 const TOKENS = ['first_name', 'last_name', 'company', 'city', 'phone', 'email'];
 const initial = TEMPLATES.find((t) => t.id === DEFAULT_TEMPLATE_ID) || TEMPLATES[0];
 
-export default function Compose({ notify, onSent }) {
+export default function Compose({ notify, onSent, project }) {
   const [groups, setGroups] = useState([]);
   const [groupIds, setGroupIds] = useState([]);
   const [templateId, setTemplateId] = useState(initial.id);
@@ -15,10 +15,14 @@ export default function Compose({ notify, onSent }) {
   const [preview, setPreview] = useState(null);
   const [testEmail, setTestEmail] = useState('');
   const [busy, setBusy] = useState('');
+  const [limits, setLimits] = useState(null);
+  const [targetLimit, setTargetLimit] = useState(100);
 
   useEffect(() => {
-    api.listGroups().then(setGroups).catch((e) => notify(e.message, 'error'));
-  }, [notify]);
+    Promise.all([api.listGroups(project.id), api.campaignLimits()])
+      .then(([rows, caps]) => { setGroups(rows); setLimits(caps); setTargetLimit(Math.min(100, caps.remaining)); })
+      .catch((e) => notify(e.message, 'error'));
+  }, [notify, project.id]);
 
   const selectedCount = groups
     .filter((g) => groupIds.includes(g.id))
@@ -63,21 +67,21 @@ export default function Compose({ notify, onSent }) {
     if (!subject.trim() || !html.trim() || !groupIds.length) {
       return notify('Subject, body and at least one group are required', 'error');
     }
-    if (!confirm(`Send "${subject}" to ${selectedCount} recipient(s) across ${groupIds.length} group(s)?`)) return;
+    if (!confirm(`Start a batch of up to ${targetLimit} eligible recipient(s) for "${subject}" across ${groupIds.length} group(s)?`)) return;
     setBusy('send');
     try {
-      const r = await api.sendCampaign({ subject, html, groupIds });
-      notify(`Campaign #${r.id} started — sending to ${r.totalRecipients}`);
+      const r = await api.sendCampaign({ subject, html, groupIds, projectId: project.id, targetLimit });
+      notify(`Campaign started: ${r.totalRecipients} recipients. ${r.deferredCount ? `${r.deferredCount} remain for a later batch.` : 'All selected contacts are in this batch.'}`);
       onSent?.();
     } catch (e) { notify(e.message, 'error'); }
     setBusy('');
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+    <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
       <Card className="space-y-4 p-5">
         <div>
-          <label className="mb-1 block text-sm font-semibold text-ink-700">Template</label>
+          <label className="mb-2 block text-sm font-semibold text-ink-700">Template gallery</label>
           <div className="flex flex-wrap gap-1.5">
             {TEMPLATES.map((t) => (
               <button
@@ -93,6 +97,7 @@ export default function Compose({ notify, onSent }) {
               </button>
             ))}
           </div>
+          <p className="mt-2 text-xs text-ink-500">Choose a design, then tailor the message and preview it against a real contact.</p>
         </div>
 
         <div>
@@ -116,7 +121,7 @@ export default function Compose({ notify, onSent }) {
           <Button variant="outline" onClick={doPreview} disabled={busy === 'preview'}>
             {busy === 'preview' ? 'Loading…' : 'Preview'}
           </Button>
-          <Input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="you@example.com" className="max-w-[220px]" />
+          <Input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="your test email" className="max-w-[220px]" />
           <Button variant="outline" onClick={doTest} disabled={busy === 'test'}>
             {busy === 'test' ? 'Sending…' : 'Send test'}
           </Button>
@@ -128,6 +133,12 @@ export default function Compose({ notify, onSent }) {
       </Card>
 
       <div className="space-y-4">
+        <Card className="border-forest-700/15 bg-forest-950 p-4 text-cream-50">
+          <div className="flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-wide text-cream-200/70">Daily send safety</p><p className="mt-1 text-2xl font-bold">{limits ? `${limits.remaining} left` : 'Loading…'}</p><p className="mt-1 text-xs text-cream-200/70">of {limits?.dailyLimit || 100} emails today · one email every {Math.round((limits?.sendGapMs || 1000) / 1000)}s</p></div><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{limits?.used || 0} sent</span></div>
+          <label className="mt-4 block text-xs font-semibold text-cream-100">This batch</label>
+          <Input type="number" min="1" max={Math.min(100, limits?.remaining || 100)} value={targetLimit} onChange={(e) => setTargetLimit(Math.min(Math.max(Number(e.target.value) || 1, 1), Math.min(100, limits?.remaining || 100)))} className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-cream-200/50" />
+          <p className="mt-2 text-xs text-cream-200/70">Only the first eligible contacts, ordered by email, will enter this batch. Use a smaller batch to test a segment.</p>
+        </Card>
         <Card className="p-4">
           <h3 className="mb-2 text-sm font-bold text-ink-700">Audience</h3>
           {groups.length === 0 && <p className="text-sm text-ink-500">No groups — create one first.</p>}
@@ -142,7 +153,7 @@ export default function Compose({ notify, onSent }) {
           </div>
           {groupIds.length > 0 && (
             <p className="mt-2 border-t border-cream-200 pt-2 text-xs text-ink-500">
-              ~{selectedCount} recipients (unsubscribed & duplicates removed at send time)
+              {selectedCount} group memberships selected. Duplicates and unsubscribed contacts are removed before the {targetLimit}-contact batch is created.
             </p>
           )}
         </Card>
