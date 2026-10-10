@@ -119,6 +119,16 @@ await check('campaign preview renders tokens', async () => {
   assert(body.renderedHtml.includes('unsubscribe'), 'no unsub footer');
 });
 
+await check('campaign preview does not require an audience', async () => {
+  const { status, body } = await j('/api/campaigns/preview', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ subject: 'Hi {{first_name}}', html: '<p>{{company}}</p>' }),
+  });
+  assert(status === 200, JSON.stringify(body));
+  assert(body.recipientCount === 0, `count ${body.recipientCount}`);
+  assert(body.renderedSubject === 'Hi Rahul', body.renderedSubject);
+});
+
 await check('unsubscribe then preview count drops', async () => {
   const preview = await j('/api/campaigns/preview', {
     method: 'POST', headers: { 'content-type': 'application/json' },

@@ -26,6 +26,8 @@ export const TEMPLATES = [
   {
     id: 'distributor-whatsapp-demo',
     name: 'Distributor WhatsApp Demo',
+    requiresTrackedLink: true,
+    trackedLinkLabel: 'Tracked video or Drive link',
     subject: '{{company}}: how many WhatsApp sales inquiries wait each day?',
     html: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#0a243e;background:#ffffff">
   <div style="padding:34px 34px 12px">
@@ -39,7 +41,7 @@ export const TEMPLATES = [
     <div><span style="color:#0a9b59;font-weight:700">✓</span>&nbsp; Consistent and current customer information</div>
     <div><span style="color:#0a9b59;font-weight:700">✓</span>&nbsp; More time for sales and customer relationships</div>
   </div>
-  <div style="padding:0 20px 8px"><a href="https://drive.google.com/file/d/1fmXBL5Dz4J-MNioHoZUKLZAu8HpsKJRa/view?usp=drive_link" target="_blank" style="display:block;text-decoration:none"><img src="${DEMO_POSTER}" width="560" alt="See the AI Sales Assistant for WhatsApp" style="display:block;width:100%;max-width:560px;height:auto;margin:0 auto;border:0;border-radius:10px" /></a></div>
+  <div style="padding:0 20px 8px"><a href="%%TRACKED_LINK%%" target="_blank" style="display:block;text-decoration:none"><img src="${DEMO_POSTER}" width="560" alt="See the AI Sales Assistant for WhatsApp" style="display:block;width:100%;max-width:560px;height:auto;margin:0 auto;border:0;border-radius:10px" /></a></div>
   <p style="padding:16px 34px 2px;margin:0;text-align:center;font-size:16px;line-height:24px;font-weight:700">See how this can support your current sales process.</p>
   <div style="padding:16px 24px 24px;text-align:center"><a href="https://wa.me/917219411464?text=Hi%2C%20I%20would%20like%20to%20understand%20how%20the%20AI%20Sales%20Assistant%20for%20WhatsApp%20could%20work%20for%20our%20business." target="_blank" style="background:#0b8f54;color:#ffffff;text-decoration:none;font-size:17px;font-weight:700;line-height:22px;padding:13px 25px;border-radius:7px;display:inline-block">Set Up Your WhatsApp Sales Assistant</a></div>
 </div>`,

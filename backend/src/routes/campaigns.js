@@ -102,8 +102,9 @@ router.delete('/:id', async (req, res, next) => {
 router.post('/preview', async (req, res, next) => {
   try {
     const groupIds = (req.body?.groupIds || []).filter(isId);
-    if (!groupIds.length) return res.status(400).json({ error: 'groupIds required' });
-    const recipients = await recipientsForGroups(groupIds, Boolean(req.body?.excludePreviouslySent));
+    const recipients = groupIds.length
+      ? await recipientsForGroups(groupIds, Boolean(req.body?.excludePreviouslySent))
+      : [];
     const sample = recipients[0] || {
       email: 'sample@example.com', first_name: 'Rahul', company: 'Sharma Electronics', city: 'Pune',
     };
