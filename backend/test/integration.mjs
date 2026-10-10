@@ -6,7 +6,7 @@ process.env.MONGODB_URI = mongod.getUri('mailing_camp_test');
 process.env.RESEND_API_KEY = 're_test_fake';
 process.env.FROM_EMAIL = 'campaigns@example.com';
 process.env.FROM_NAME = 'Test Sender';
-process.env.PUBLIC_BASE_URL = 'http://localhost:8080';
+process.env.PUBLIC_BASE_URL = 'http://localhost:8099';
 process.env.PORT = '8099';
 
 // Stub Resend's HTTP calls so we can test the send state machine offline.
@@ -120,12 +120,31 @@ await check('campaign preview renders tokens', async () => {
 });
 
 await check('unsubscribe then preview count drops', async () => {
-  await fetch(`${BASE}/api/unsubscribe?email=rahul@x.com`);
+  const preview = await j('/api/campaigns/preview', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ subject: 'x', html: 'y', groupIds: [groupId] }),
+  });
+  const unsubscribeHref = preview.body.renderedHtml.match(/href="([^"]*\/api\/unsubscribe\?token=[^"]+)"/)?.[1]?.replaceAll('&amp;', '&');
+  assert(unsubscribeHref, 'signed unsubscribe URL missing');
+  const unsubscribed = await fetch(unsubscribeHref);
+  assert(unsubscribed.status === 200, `unsubscribe status ${unsubscribed.status}`);
   const { body } = await j('/api/campaigns/preview', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ subject: 'x', html: 'y', groupIds: [groupId] }),
   });
   assert(body.recipientCount === 2, `count ${body.recipientCount}`);
+});
+
+await check('create and follow a tracked link', async () => {
+  const created = await j('/api/links', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name: 'Demo video', destinationUrl: 'https://example.com/demo' }),
+  });
+  assert(created.status === 201 && created.body.tracked_url, JSON.stringify(created.body));
+  const click = await fetch(created.body.tracked_url, { redirect: 'manual' });
+  assert(click.status === 302 && click.headers.get('location') === 'https://example.com/demo', 'redirect failed');
+  const listed = await j('/api/links');
+  assert(listed.body[0].click_count === 1 && listed.body[0].unique_click_count === 1, JSON.stringify(listed.body[0]));
 });
 
 await check('remove member from group', async () => {

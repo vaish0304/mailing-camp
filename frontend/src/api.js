@@ -80,4 +80,8 @@ export const api = {
   previewCampaign: (body) => req('/api/campaigns/preview', { method: 'POST', body }),
   testCampaign: (body) => req('/api/campaigns/test', { method: 'POST', body }),
   sendCampaign: (body) => req('/api/campaigns', { method: 'POST', body }),
+
+  listLinks: (projectId) => req(`/api/links${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+  createLink: (body) => req('/api/links', { method: 'POST', body }),
+  deleteLink: (id) => req(`/api/links/${id}`, { method: 'DELETE' }),
 };

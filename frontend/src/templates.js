@@ -13,6 +13,8 @@ ${inner}
 </div>`;
 
 const button = (label, href) => `<a href="${href}" style="display:inline-block;background:#cc9a2b;color:#071f18;text-decoration:none;padding:12px 26px;border-radius:6px;font-weight:bold;font-size:14px">${label}</a>`;
+const PUBLIC_APP_URL = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
+const DEMO_POSTER = `${PUBLIC_APP_URL}/campaign-media/ai-sales-assistant-demo-thumbnail.png`;
 
 export const TEMPLATES = [
   {
@@ -20,6 +22,27 @@ export const TEMPLATES = [
     name: 'Blank',
     subject: '',
     html: '',
+  },
+  {
+    id: 'distributor-whatsapp-demo',
+    name: 'Distributor WhatsApp Demo',
+    subject: '{{company}}: how many WhatsApp sales inquiries wait each day?',
+    html: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#0a243e;background:#ffffff">
+  <div style="padding:34px 34px 12px">
+    <p style="margin:0 0 11px;font-size:13px;line-height:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0b8f54">For distributors / wholesalers / retailers</p>
+    <h1 style="margin:0 0 17px;font-size:28px;line-height:35px">How many WhatsApp sales inquiries does your team leave waiting each day?</h1>
+    <p style="margin:0;font-size:16px;line-height:25px;color:#3d5262">Customers ask about stock, latest pricing and dispatch status throughout the day. Manual checking slows replies and takes your team away from selling.</p>
+  </div>
+  <div style="padding:8px 34px 16px;font-size:16px;line-height:25px;color:#3d5262"><strong style="color:#0a243e">AI Sales Assistant for WhatsApp</strong> helps distributors reply promptly, share consistent information and keep every inquiry organised while the sales team focuses on customers and closing business.</div>
+  <div style="padding:0 34px 25px;font-size:16px;line-height:29px">
+    <div><span style="color:#0a9b59;font-weight:700">✓</span>&nbsp; Prompt responses to price, stock and dispatch inquiries</div>
+    <div><span style="color:#0a9b59;font-weight:700">✓</span>&nbsp; Consistent and current customer information</div>
+    <div><span style="color:#0a9b59;font-weight:700">✓</span>&nbsp; More time for sales and customer relationships</div>
+  </div>
+  <div style="padding:0 20px 8px"><a href="https://drive.google.com/file/d/1fmXBL5Dz4J-MNioHoZUKLZAu8HpsKJRa/view?usp=drive_link" target="_blank" style="display:block;text-decoration:none"><img src="${DEMO_POSTER}" width="560" alt="See the AI Sales Assistant for WhatsApp" style="display:block;width:100%;max-width:560px;height:auto;margin:0 auto;border:0;border-radius:10px" /></a></div>
+  <p style="padding:16px 34px 2px;margin:0;text-align:center;font-size:16px;line-height:24px;font-weight:700">See how this can support your current sales process.</p>
+  <div style="padding:16px 24px 24px;text-align:center"><a href="https://wa.me/917219411464?text=Hi%2C%20I%20would%20like%20to%20understand%20how%20the%20AI%20Sales%20Assistant%20for%20WhatsApp%20could%20work%20for%20our%20business." target="_blank" style="background:#0b8f54;color:#ffffff;text-decoration:none;font-size:17px;font-weight:700;line-height:22px;padding:13px 25px;border-radius:7px;display:inline-block">Set Up Your WhatsApp Sales Assistant</a></div>
+</div>`,
   },
   {
     id: 'test',

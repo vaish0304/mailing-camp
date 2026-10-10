@@ -35,3 +35,5 @@ services:
         sync: false
       - key: RESEND_WEBHOOK_SECRET
         sync: false
+      - key: UNSUBSCRIBE_SECRET
+        sync: false

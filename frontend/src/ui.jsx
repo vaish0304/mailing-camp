@@ -44,6 +44,7 @@ const BADGE = {
   failed: 'bg-red-100 text-red-700',
   bounced: 'bg-red-100 text-red-700',
   complained: 'bg-red-200 text-red-800',
+  unsubscribed: 'bg-slate-200 text-slate-700',
   draft: 'bg-cream-200 text-ink-700',
 };
 

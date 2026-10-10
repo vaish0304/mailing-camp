@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 
-import { initDb, pingDb, Recipient } from './db.js';
+import { initDb, pingDb, CampaignSend, Recipient, UnsubscribeEvent } from './db.js';
 import { requireAuth, authEnabled } from './auth.js';
 import { FROM } from './mailer.js';
 import groupsRouter from './routes/groups.js';
@@ -10,6 +10,8 @@ import recipientsRouter from './routes/recipients.js';
 import campaignsRouter from './routes/campaigns.js';
 import hooksRouter from './routes/hooks.js';
 import projectsRouter from './routes/projects.js';
+import linksRouter from './routes/links.js';
+import { verifyUnsubscribeToken } from './mailer.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -44,9 +46,24 @@ app.get('/api/health', async (_req, res) => {
 });
 
 // One-click unsubscribe (linked from the email footer + List-Unsubscribe header)
+async function processUnsubscribe(token, source) {
+  const data = verifyUnsubscribeToken(token);
+  const email = String(data?.e || '').trim().toLowerCase();
+  if (!email) return null;
+  const now = new Date();
+  const recipient = await Recipient.findOneAndUpdate(
+    { email },
+    { unsubscribed: true, unsubscribed_at: now, unsubscribe_source: source },
+    { new: true },
+  ).catch(() => null);
+  await UnsubscribeEvent.create({ recipient_id: recipient?._id || null, campaign_id: data?.c || null, email, source }).catch(() => {});
+  if (data?.c) await CampaignSend.updateOne({ campaign_id: data.c, email }, { status: 'unsubscribed', last_event_at: now }).catch(() => {});
+  return email;
+}
+
 app.get('/api/unsubscribe', async (req, res) => {
-  const email = String(req.query.email || '').trim().toLowerCase();
-  if (email) await Recipient.updateOne({ email }, { unsubscribed: true }).catch(() => {});
+  const email = await processUnsubscribe(req.query.token, 'email_link');
+  if (!email) return res.status(400).set('Content-Type', 'text/html').send('<h2>Invalid or expired unsubscribe link.</h2>');
   res.set('Content-Type', 'text/html').send(
     `<!doctype html><meta charset="utf-8"><title>Unsubscribed</title>
      <div style="font-family:Arial,sans-serif;max-width:480px;margin:80px auto;text-align:center">
@@ -56,10 +73,13 @@ app.get('/api/unsubscribe', async (req, res) => {
   );
 });
 app.post('/api/unsubscribe', express.urlencoded({ extended: false }), async (req, res) => {
-  const email = String(req.query.email || req.body.email || '').trim().toLowerCase();
-  if (email) await Recipient.updateOne({ email }, { unsubscribed: true }).catch(() => {});
-  res.json({ ok: true });
+  const email = await processUnsubscribe(req.query.token || req.body.token, 'list_unsubscribe');
+  if (!email) return res.status(400).json({ error: 'invalid unsubscribe token' });
+  res.json({ ok: true, email });
 });
+
+// Public tracked-link redirects. Creation and reporting routes inside the router are protected there.
+app.use('/api', linksRouter);
 
 // --- protected API ---
 app.use('/api/groups', requireAuth, groupsRouter);

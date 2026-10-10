@@ -62,6 +62,7 @@ network access (`0.0.0.0/0` for Render), and copy the connection string
    | `CORS_ORIGIN` | `https://your-console.netlify.app` | your frontend origin |
    | `PUBLIC_BASE_URL` | `https://mailing-camp-backend.onrender.com` | for unsubscribe links |
    | `RESEND_WEBHOOK_SECRET` | `whsec_...` | optional, enables delivery tracking |
+   | `UNSUBSCRIBE_SECRET` | *(long random string)* | signs tamper resistant unsubscribe links |
 
 ### Option B: manual
 Create a Render **Web Service** (root dir `backend`, build `npm install`, start
@@ -88,6 +89,16 @@ In Resend → **Webhooks**, add `https://<backend>/api/webhooks/resend` and subs
 `email.delivered`, `email.bounced`, `email.complained`, `email.opened`, `email.clicked`.
 Put the signing secret in `RESEND_WEBHOOK_SECRET`. The History tab then shows live
 delivery/open/bounce status, and bounced/complained addresses are auto-unsubscribed.
+
+Webhook payloads are stored idempotently for audit and replay safety. Delivery, open,
+click, bounce and complaint events update each recipient's send record and timestamp.
+
+### Tracked links
+The Campaign Studio includes a **Tracked links** panel. Paste any HTTPS destination,
+give it a name and create a redirect URL. Insert or copy that URL into an email. The
+public `/api/t/:token` redirect records total and unique clicks before forwarding the
+recipient. When a tracked URL is used in a campaign, Mailing Camp adds campaign and
+recipient attribution automatically.
 
 ---
 
@@ -118,7 +129,9 @@ npm run dev
 2. **Compose & Send** — pick a **template** (Blank / Test email / Cold intro / Follow-up
    — edit `frontend/src/templates.js` to change them), tweak the subject and HTML body,
    use `{{first_name}}` etc. for personalisation, **Preview** against a real contact,
-   **Send test** to yourself, then **Send** to the selected groups.
+   optionally select **Attach AI Sales Assistant brochure**, **Send test** to yourself,
+   then **Send** to the selected groups. The preview displays the selected brochure
+   attachment before the campaign is sent.
 3. **History** — watch each campaign send in real time with per-recipient status.
 
 Sending runs in the background in batches of 100 (Resend's batch endpoint), throttled
@@ -144,6 +157,9 @@ send time. Every email gets an unsubscribe footer and `List-Unsubscribe` header.
 | `GET` | `/api/campaigns[/:id]` | history / per-recipient detail |
 | `GET` | `/api/unsubscribe?email=` | one-click unsubscribe (public) |
 | `POST` | `/api/webhooks/resend` | Resend delivery events (public, signed) |
+| `GET/POST` | `/api/links` | list / create tracked redirect links |
+| `DELETE` | `/api/links/:id` | delete a tracked link and its click history |
+| `GET` | `/api/t/:token` | public click tracking redirect |
 
 All `/api/groups`, `/api/recipients`, `/api/campaigns` routes require
 `Authorization: Bearer <ADMIN_TOKEN>` when `ADMIN_TOKEN` is set.

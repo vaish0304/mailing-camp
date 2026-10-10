@@ -2,13 +2,13 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Campaign, CampaignSend, Group, Recipient } from '../db.js';
 import {
-  FROM, REPLY_TO, renderTemplate, sendBatch, withUnsubFooter, unsubscribeUrl,
+  FROM, REPLY_TO, brochureAttachment, renderTemplate, sendBatch, withUnsubFooter, unsubscribeUrl,
 } from '../mailer.js';
 
 const router = Router();
 const DAILY_SEND_LIMIT = Math.min(Math.max(Number(process.env.DAILY_SEND_LIMIT) || 100, 1), 10000);
 const SEND_GAP_MS = Math.max(Number(process.env.BATCH_DELAY_MS) || 1000, 1000);
-const COMPLETED_STATUSES = ['sent', 'delivered', 'opened', 'clicked', 'delayed'];
+const COMPLETED_STATUSES = ['sent', 'delivered', 'opened', 'clicked', 'delayed', 'unsubscribed'];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const isId = (v) => mongoose.isValidObjectId(v);
 
@@ -112,6 +112,7 @@ router.post('/preview', async (req, res, next) => {
       sampleRecipient: sample,
       renderedSubject: renderTemplate(req.body?.subject || '', sample),
       renderedHtml: withUnsubFooter(renderTemplate(req.body?.html || '', sample), sample.email),
+      attachments: req.body?.attachBrochure ? [{ filename: 'AI-Sales-Assistant-Brochure.png', type: 'image/png' }] : [],
     });
   } catch (e) { next(e); }
 });
@@ -126,6 +127,7 @@ router.post('/test', async (req, res, next) => {
       to: email,
       subject: `[TEST] ${renderTemplate(req.body?.subject || '(no subject)', ctx)}`,
       html: withUnsubFooter(renderTemplate(req.body?.html || '', ctx), email),
+      attachments: req.body?.attachBrochure ? [brochureAttachment()] : undefined,
     }]);
     res.json({ ok: true, id: data?.data?.[0]?.id });
   } catch (e) { next(e); }
@@ -155,6 +157,7 @@ router.post('/', async (req, res, next) => {
       subject, html, from_email: FROM, reply_to: REPLY_TO || null,
       group_ids: groupIds, project_id: projectId, status: 'sending', total_recipients: recipients.length,
       audience_count: audience.length, deferred_count: Math.max(audience.length - recipients.length, 0),
+      attach_brochure: Boolean(req.body?.attachBrochure),
     });
 
     await CampaignSend.insertMany(
@@ -162,7 +165,7 @@ router.post('/', async (req, res, next) => {
     );
 
     // fire-and-forget; frontend polls GET /api/campaigns/:id
-    runCampaign(campaign._id, { subject, html }, recipients).catch(async (e) => {
+    runCampaign(campaign._id, { subject, html, attachBrochure: Boolean(req.body?.attachBrochure) }, recipients).catch(async (e) => {
       console.error(`campaign ${campaign._id} failed:`, e);
       await Campaign.findByIdAndUpdate(campaign._id, { status: 'failed', error: String(e.message || e) }).catch(() => {});
     });
@@ -176,18 +179,29 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-async function runCampaign(campaignId, { subject, html }, recipients) {
+async function runCampaign(campaignId, { subject, html, attachBrochure }, recipients) {
   let sent = 0;
   let failed = 0;
 
   for (let i = 0; i < recipients.length; i += 1) {
     const chunk = recipients.slice(i, i + 1);
+    const sendRows = await CampaignSend.find({ campaign_id: campaignId, email: { $in: chunk.map((r) => r.email) } }).lean();
+    const sendByEmail = new Map(sendRows.map((row) => [row.email, row]));
     const messages = chunk.map((r) => {
-      const unsub = unsubscribeUrl(r.email);
+      const sendRow = sendByEmail.get(r.email);
+      const unsub = unsubscribeUrl(r.email, campaignId);
+      let renderedHtml = renderTemplate(html, r);
+      if (sendRow) {
+        renderedHtml = renderedHtml.replace(/href=(['"])(https?:\/\/[^'"\s>]+\/api\/t\/[A-Za-z0-9_-]+)([^'"]*)\1/gi, (_m, quote, url, query) => {
+          const separator = query.includes('?') ? '&amp;' : '?';
+          return `href=${quote}${url}${query}${separator}cid=${campaignId}&amp;sid=${sendRow._id}${quote}`;
+        });
+      }
       return {
         to: r.email,
         subject: renderTemplate(subject, r),
-        html: withUnsubFooter(renderTemplate(html, r), r.email),
+        html: withUnsubFooter(renderedHtml, r.email, campaignId),
+        attachments: attachBrochure ? [brochureAttachment()] : undefined,
         headers: unsub
           ? { 'List-Unsubscribe': `<${unsub}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
           : undefined,

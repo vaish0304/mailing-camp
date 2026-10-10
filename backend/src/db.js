@@ -38,6 +38,8 @@ const recipientSchema = new mongoose.Schema(
     city: { type: String, default: null },
     custom_fields: { type: Map, of: String, default: {} },
     unsubscribed: { type: Boolean, default: false },
+    unsubscribed_at: { type: Date, default: null },
+    unsubscribe_source: { type: String, default: null },
     groups: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group', index: true }],
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
@@ -58,9 +60,61 @@ const campaignSchema = new mongoose.Schema(
     sent_count: { type: Number, default: 0 },
     failed_count: { type: Number, default: 0 },
     error: { type: String, default: null },
+    last_event_at: { type: Date, default: null },
+    delivered_at: { type: Date, default: null },
+    opened_at: { type: Date, default: null },
+    clicked_at: { type: Date, default: null },
     sent_at: { type: Date, default: null },
+    attach_brochure: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
+);
+
+const trackedLinkSchema = new mongoose.Schema(
+  {
+    token: { type: String, required: true, unique: true, index: true },
+    name: { type: String, required: true, trim: true },
+    destination_url: { type: String, required: true },
+    project_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null, index: true },
+    click_count: { type: Number, default: 0 },
+    unique_click_count: { type: Number, default: 0 },
+    last_clicked_at: { type: Date, default: null },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
+);
+
+const linkClickSchema = new mongoose.Schema(
+  {
+    tracked_link_id: { type: mongoose.Schema.Types.ObjectId, ref: 'TrackedLink', required: true, index: true },
+    campaign_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', default: null, index: true },
+    campaign_send_id: { type: mongoose.Schema.Types.ObjectId, ref: 'CampaignSend', default: null, index: true },
+    fingerprint: { type: String, default: null, index: true },
+    user_agent: { type: String, default: null },
+    referer: { type: String, default: null },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false }, toJSON },
+);
+
+const unsubscribeEventSchema = new mongoose.Schema(
+  {
+    recipient_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipient', default: null, index: true },
+    campaign_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', default: null, index: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
+    source: { type: String, default: 'email_link' },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false }, toJSON },
+);
+
+const webhookEventSchema = new mongoose.Schema(
+  {
+    provider: { type: String, default: 'resend' },
+    provider_event_id: { type: String, default: null, unique: true, sparse: true },
+    event_type: { type: String, required: true, index: true },
+    email_id: { type: String, default: null, index: true },
+    payload: { type: mongoose.Schema.Types.Mixed, default: {} },
+    processed: { type: Boolean, default: false },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false }, toJSON },
 );
 
 const campaignSendSchema = new mongoose.Schema(
@@ -90,6 +144,10 @@ export const Group = mongoose.model('Group', groupSchema);
 export const Recipient = mongoose.model('Recipient', recipientSchema);
 export const Campaign = mongoose.model('Campaign', campaignSchema);
 export const CampaignSend = mongoose.model('CampaignSend', campaignSendSchema);
+export const TrackedLink = mongoose.model('TrackedLink', trackedLinkSchema);
+export const LinkClick = mongoose.model('LinkClick', linkClickSchema);
+export const UnsubscribeEvent = mongoose.model('UnsubscribeEvent', unsubscribeEventSchema);
+export const WebhookEvent = mongoose.model('WebhookEvent', webhookEventSchema);
 
 export async function initDb() {
   await mongoose.connect(process.env.MONGODB_URI, {
@@ -101,6 +159,10 @@ export async function initDb() {
     Recipient.syncIndexes(),
     Campaign.syncIndexes(),
     CampaignSend.syncIndexes(),
+    TrackedLink.syncIndexes(),
+    LinkClick.syncIndexes(),
+    UnsubscribeEvent.syncIndexes(),
+    WebhookEvent.syncIndexes(),
   ]);
   console.log('MongoDB connected');
 }
