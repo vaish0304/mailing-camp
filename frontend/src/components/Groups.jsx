@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Button, Card, Input } from '../ui.jsx';
 
-const TEMPLATE = 'email,first_name,last_name,company,phone,city\n'
-  + 'rahul@sharmaelectronics.in,Rahul,Sharma,Sharma Electronics,+91 98200 11111,Pune\n';
+const TEMPLATE = 'email,first_name,last_name,company,phone,city,whatsapp_opt_in\n'
+  + 'rahul@sharmaelectronics.in,Rahul,Sharma,Sharma Electronics,+91 98200 11111,Pune,yes\n';
 
 function downloadTemplate() {
   const blob = new Blob([TEMPLATE], { type: 'text/csv' });
@@ -109,7 +109,7 @@ export default function Groups({ notify, project }) {
   );
 }
 
-const EMPTY_FORM = { email: '', first_name: '', last_name: '', company: '', city: '', phone: '' };
+const EMPTY_FORM = { email: '', first_name: '', last_name: '', company: '', city: '', phone: '', whatsapp_opt_in: false };
 
 function GroupDetail({ group, notify, onChange }) {
   const [recipients, setRecipients] = useState([]);
@@ -212,6 +212,7 @@ function GroupDetail({ group, notify, onChange }) {
             <Input placeholder="City" value={form.city} onChange={setField('city')} />
             <Input placeholder="Phone / WhatsApp" value={form.phone} onChange={setField('phone')} />
           </div>
+          <label className="mt-3 flex items-start gap-2 text-xs text-ink-700"><input type="checkbox" checked={form.whatsapp_opt_in} onChange={(e) => setForm((current) => ({ ...current, whatsapp_opt_in: e.target.checked }))} /><span><b>WhatsApp consent confirmed</b><br />Only tick this when this person explicitly agreed to receive WhatsApp messages from this business.</span></label>
           <div className="mt-2 flex items-center gap-2">
             <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add to group'}</Button>
             <span className="text-xs text-ink-500">Existing contacts (same email) are updated, not duplicated.</span>
@@ -246,13 +247,14 @@ function GroupDetail({ group, notify, onChange }) {
               <th className="py-2 pr-3">Company</th>
               <th className="py-2 pr-3">City</th>
               <th className="py-2 pr-3">Phone</th>
+              <th className="py-2 pr-3">WhatsApp</th>
               <th className="py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-cream-100">
-            {loading && <tr><td colSpan="6" className="py-4 text-ink-500">Loading…</td></tr>}
+            {loading && <tr><td colSpan="7" className="py-4 text-ink-500">Loading…</td></tr>}
             {!loading && recipients.length === 0 && (
-              <tr><td colSpan="6" className="py-4 text-ink-500">No recipients yet — add one manually or upload a CSV.</td></tr>
+              <tr><td colSpan="7" className="py-4 text-ink-500">No recipients yet — add one manually or upload a CSV.</td></tr>
             )}
             {recipients.map((r) => (
               <tr key={r.id} className={r.unsubscribed ? 'opacity-50' : ''}>
@@ -261,6 +263,7 @@ function GroupDetail({ group, notify, onChange }) {
                 <td className="py-2 pr-3">{r.company || '—'}</td>
                 <td className="py-2 pr-3">{r.city || '—'}</td>
                 <td className="py-2 pr-3">{r.phone || '—'}</td>
+                <td className="py-2 pr-3">{r.whatsapp_opt_in && r.phone ? <span className="text-xs font-semibold text-forest-700">Consented</span> : <span className="text-xs text-ink-500">Not eligible</span>}</td>
                 <td className="whitespace-nowrap py-2 text-right">
                   <button onClick={() => removeMember(r.id)} className="text-xs text-ink-500 hover:text-forest-700">Remove</button>
                   <button onClick={() => deleteRecipient(r)} className="ml-3 text-xs text-ink-500 hover:text-red-600">Delete</button>

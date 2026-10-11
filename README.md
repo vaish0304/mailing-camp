@@ -62,7 +62,11 @@ network access (`0.0.0.0/0` for Render), and copy the connection string
    | `CORS_ORIGIN` | `https://your-console.netlify.app` | your frontend origin |
    | `PUBLIC_BASE_URL` | `https://mailing-camp-backend.onrender.com` | for unsubscribe links |
    | `RESEND_WEBHOOK_SECRET` | `whsec_...` | optional, enables delivery tracking |
-   | `UNSUBSCRIBE_SECRET` | *(long random string)* | signs tamper resistant unsubscribe links |
+| `UNSUBSCRIBE_SECRET` | *(long random string)* | signs tamper resistant unsubscribe links |
+   | `WHATSAPP_ACCESS_TOKEN` | *(Meta system-user token)* | WhatsApp Cloud API token; backend only |
+   | `WHATSAPP_PHONE_NUMBER_ID` | `123...` | WhatsApp sender phone-number ID, not the displayed phone number |
+   | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | *(random string)* | used when Meta verifies the webhook URL |
+   | `META_APP_SECRET` | *(from Meta App Settings)* | validates Meta webhook signatures |
 
 ### Option B: manual
 Create a Render **Web Service** (root dir `backend`, build `npm install`, start
@@ -99,6 +103,11 @@ give it a name and create a redirect URL. Insert or copy that URL into an email.
 public `/api/t/:token` redirect records total and unique clicks before forwarding the
 recipient. When a tracked URL is used in a campaign, Mailing Camp adds campaign and
 recipient attribution automatically.
+
+### WhatsApp campaigns
+The **WhatsApp** tab sends only Meta-approved template messages through the WhatsApp Cloud API. It intentionally does not offer free-form broadcast text: business-initiated WhatsApp outreach must use an approved template and contacts must have explicitly opted in. Import a `whatsapp_opt_in` column with `yes`/`true`, or confirm consent when adding a contact manually. A phone number alone is never enough.
+
+Set the WhatsApp environment variables above on the backend, then configure the webhook in Meta as `https://<backend>/api/webhooks/whatsapp`, using the same `WHATSAPP_WEBHOOK_VERIFY_TOKEN`. The UI accepts the approved template name, language code, and body parameters in the exact order defined in Meta. Personalisation tokens such as `{{first_name}}` and `{{company}}` are supported in body values. Messages are deduplicated by phone number, capped daily, and paced at one per second.
 
 ---
 
@@ -160,6 +169,10 @@ send time. Every email gets an unsubscribe footer and `List-Unsubscribe` header.
 | `GET/POST` | `/api/links` | list / create tracked redirect links |
 | `DELETE` | `/api/links/:id` | delete a tracked link and its click history |
 | `GET` | `/api/t/:token` | public click tracking redirect |
+| `GET` | `/api/whatsapp/status` | WhatsApp configuration and daily capacity |
+| `GET/POST` | `/api/whatsapp/campaigns` | list / create consent-gated WhatsApp template campaigns |
+| `GET` | `/api/webhooks/whatsapp` | Meta webhook verification |
+| `POST` | `/api/webhooks/whatsapp` | Meta delivery and read events |
 
 All `/api/groups`, `/api/recipients`, `/api/campaigns` routes require
 `Authorization: Bearer <ADMIN_TOKEN>` when `ADMIN_TOKEN` is set.

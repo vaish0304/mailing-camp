@@ -15,9 +15,10 @@ const isId = (v) => mongoose.isValidObjectId(v);
 async function withCounts(groups) {
   const completedStatuses = ['sent', 'delivered', 'opened', 'clicked', 'delayed'];
   const counts = await Promise.all(groups.map(async (group) => {
-    const [recipientCount, activeRecipients] = await Promise.all([
+    const [recipientCount, activeRecipients, whatsappEligibleCount] = await Promise.all([
       Recipient.countDocuments({ groups: group._id }),
       Recipient.find({ groups: group._id, unsubscribed: false }).select('_id').lean(),
+      Recipient.countDocuments({ groups: group._id, unsubscribed: false, whatsapp_opt_in: true, phone: { $nin: [null, ''] } }),
     ]);
     const ids = activeRecipients.map((recipient) => recipient._id);
     const completed = ids.length
@@ -26,7 +27,7 @@ async function withCounts(groups) {
         created_at: { $gte: group.progress_reset_at || new Date(0) },
       })
       : [];
-    return { recipient_count: recipientCount, active_recipient_count: ids.length, completed_count: completed.length };
+    return { recipient_count: recipientCount, active_recipient_count: ids.length, whatsapp_eligible_count: whatsappEligibleCount, completed_count: completed.length };
   }));
   return groups.map((group, index) => ({
     ...group.toJSON(),
@@ -135,6 +136,7 @@ router.post('/:id/import', upload.single('file'), async (req, res, next) => {
         if (r[f]) set[f] = r[f];
       }
       if (Object.keys(r.custom_fields || {}).length) set.custom_fields = r.custom_fields;
+      if (r.whatsapp_opt_in) { set.whatsapp_opt_in = true; set.whatsapp_opted_in_at = new Date(); }
 
       const result = await Recipient.findOneAndUpdate(
         { email: r.email },
@@ -183,6 +185,7 @@ router.post('/:id/recipients', async (req, res, next) => {
       const v = String(req.body?.[f] ?? '').trim();
       if (v) set[f] = v;
     }
+    if (req.body?.whatsapp_opt_in === true) { set.whatsapp_opt_in = true; set.whatsapp_opted_in_at = new Date(); }
     if (req.body?.custom_fields && typeof req.body.custom_fields === 'object' && !Array.isArray(req.body.custom_fields)) {
       const custom_fields = {};
       for (const [key, value] of Object.entries(req.body.custom_fields)) {

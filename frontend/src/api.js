@@ -80,6 +80,13 @@ export const api = {
   previewCampaign: (body) => req('/api/campaigns/preview', { method: 'POST', body }),
   testCampaign: (body) => req('/api/campaigns/test', { method: 'POST', body }),
   sendCampaign: (body) => req('/api/campaigns', { method: 'POST', body }),
+  startExperiment: (body) => req('/api/campaigns/experiments', { method: 'POST', body }),
+  listExperiments: (projectId) => req(`/api/campaigns/experiments${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+
+  whatsappStatus: () => req('/api/whatsapp/status'),
+  listWhatsAppCampaigns: (projectId) => req(`/api/whatsapp/campaigns${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+  getWhatsAppCampaign: (id) => req(`/api/whatsapp/campaigns/${id}`),
+  sendWhatsAppCampaign: (body) => req('/api/whatsapp/campaigns', { method: 'POST', body }),
 
   listLinks: (projectId) => req(`/api/links${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
   createLink: (body) => req('/api/links', { method: 'POST', body }),

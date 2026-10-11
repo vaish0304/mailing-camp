@@ -5,11 +5,13 @@ import Groups from './components/Groups.jsx';
 import Compose from './components/Compose.jsx';
 import History from './components/History.jsx';
 import TrackedLinks from './components/TrackedLinks.jsx';
+import WhatsAppCampaign from './components/WhatsAppCampaign.jsx';
 
 const TABS = [
   { id: 'audience', label: 'Audience' },
   { id: 'compose', label: 'Campaign studio' },
   { id: 'links', label: 'Tracked links' },
+  { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'history', label: 'Activity' },
 ];
 
@@ -82,7 +84,7 @@ export default function App() {
           {!health?.ok && <Card className="mb-5 border-red-200 bg-red-50 p-4 text-sm text-red-800">Cannot reach the backend. Check the URL and token in Settings.</Card>}
           {health?.ok && !cfg.token && health.authRequired && <Card className="mb-5 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">This workspace needs its admin token before contacts or campaigns can be changed.</Card>}
           <nav className="mb-6 flex gap-1 rounded-xl border border-cream-200 bg-white p-1">{TABS.map((item) => <button key={item.id} onClick={() => setTab(item.id)} className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-bold ${tab === item.id ? 'bg-forest-700 text-cream-50' : 'text-ink-500 hover:bg-cream-100'}`}>{item.label}</button>)}</nav>
-          {!activeProject ? <Card className="p-8 text-center text-ink-500">Create a mailing project to begin.</Card> : <>{tab === 'audience' && <Groups notify={notify} project={activeProject} />}{tab === 'compose' && <Compose notify={notify} project={activeProject} onSent={() => setTab('history')} />}{tab === 'links' && <TrackedLinks notify={notify} project={activeProject} />}{tab === 'history' && <History notify={notify} project={activeProject} />}</>}
+          {!activeProject ? <Card className="p-8 text-center text-ink-500">Create a mailing project to begin.</Card> : <>{tab === 'audience' && <Groups notify={notify} project={activeProject} />}{tab === 'compose' && <Compose notify={notify} project={activeProject} onSent={() => setTab('history')} />}{tab === 'links' && <TrackedLinks notify={notify} project={activeProject} />}{tab === 'whatsapp' && <WhatsAppCampaign notify={notify} project={activeProject} />}{tab === 'history' && <History notify={notify} project={activeProject} />}</>}
         </main>
       </div>
       <Toast toast={toast} />

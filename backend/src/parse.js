@@ -2,7 +2,7 @@ import { parse as parseCsv } from 'csv-parse/sync';
 import XLSX from 'xlsx';
 
 /** Canonical recipient fields the tool understands. */
-export const FIELDS = ['email', 'first_name', 'last_name', 'company', 'phone', 'city'];
+export const FIELDS = ['email', 'first_name', 'last_name', 'company', 'phone', 'city', 'whatsapp_opt_in'];
 
 // Header aliases -> canonical field. Compared after lower-casing and stripping
 // non-alphanumerics, so "First Name", "first-name" and "FIRSTNAME" all match.
@@ -39,6 +39,9 @@ const ALIASES = {
   whatsapp: 'phone',
   whatsappnumber: 'phone',
   number: 'phone',
+  whatsappoptin: 'whatsapp_opt_in',
+  whatsappconsent: 'whatsapp_opt_in',
+  whatsapppermission: 'whatsapp_opt_in',
   city: 'city',
   town: 'city',
   location: 'city',
@@ -144,6 +147,7 @@ export function parseRecipientsFile(buffer, filename) {
       company: mapped.company || null,
       phone: mapped.phone || null,
       city: mapped.city || null,
+      whatsapp_opt_in: /^(true|yes|1|y)$/i.test(mapped.whatsapp_opt_in || ''),
       custom_fields,
     });
   });

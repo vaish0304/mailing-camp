@@ -40,6 +40,8 @@ const recipientSchema = new mongoose.Schema(
     unsubscribed: { type: Boolean, default: false },
     unsubscribed_at: { type: Date, default: null },
     unsubscribe_source: { type: String, default: null },
+    whatsapp_opt_in: { type: Boolean, default: false, index: true },
+    whatsapp_opted_in_at: { type: Date, default: null },
     groups: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group', index: true }],
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
@@ -53,6 +55,9 @@ const campaignSchema = new mongoose.Schema(
     reply_to: { type: String, default: null },
     group_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }],
     project_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null, index: true },
+    experiment_id: { type: String, default: null, index: true },
+    variant_id: { type: String, default: null },
+    variant_name: { type: String, default: null },
     status: { type: String, default: 'draft' }, // draft | sending | sent | partial | failed
     total_recipients: { type: Number, default: 0 },
     audience_count: { type: Number, default: 0 },
@@ -129,6 +134,36 @@ const campaignSendSchema = new mongoose.Schema(
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
 );
 
+const whatsappCampaignSchema = new mongoose.Schema(
+  {
+    project_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null, index: true },
+    group_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }],
+    template_name: { type: String, required: true },
+    language_code: { type: String, required: true },
+    body_values: [{ type: String }],
+    status: { type: String, default: 'draft' },
+    total_recipients: { type: Number, default: 0 },
+    sent_count: { type: Number, default: 0 },
+    failed_count: { type: Number, default: 0 },
+    error: { type: String, default: null },
+    sent_at: { type: Date, default: null },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
+);
+
+const whatsappSendSchema = new mongoose.Schema(
+  {
+    campaign_id: { type: mongoose.Schema.Types.ObjectId, ref: 'WhatsAppCampaign', required: true, index: true },
+    recipient_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipient', required: true, index: true },
+    phone: { type: String, required: true },
+    message_id: { type: String, default: null, index: true },
+    status: { type: String, default: 'pending' },
+    error: { type: String, default: null },
+    last_event_at: { type: Date, default: null },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, toJSON },
+);
+
 const projectSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true, trim: true },
@@ -148,6 +183,8 @@ export const TrackedLink = mongoose.model('TrackedLink', trackedLinkSchema);
 export const LinkClick = mongoose.model('LinkClick', linkClickSchema);
 export const UnsubscribeEvent = mongoose.model('UnsubscribeEvent', unsubscribeEventSchema);
 export const WebhookEvent = mongoose.model('WebhookEvent', webhookEventSchema);
+export const WhatsAppCampaign = mongoose.model('WhatsAppCampaign', whatsappCampaignSchema);
+export const WhatsAppSend = mongoose.model('WhatsAppSend', whatsappSendSchema);
 
 export async function initDb() {
   await mongoose.connect(process.env.MONGODB_URI, {
@@ -163,6 +200,8 @@ export async function initDb() {
     LinkClick.syncIndexes(),
     UnsubscribeEvent.syncIndexes(),
     WebhookEvent.syncIndexes(),
+    WhatsAppCampaign.syncIndexes(),
+    WhatsAppSend.syncIndexes(),
   ]);
   console.log('MongoDB connected');
 }

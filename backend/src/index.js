@@ -11,6 +11,7 @@ import campaignsRouter from './routes/campaigns.js';
 import hooksRouter from './routes/hooks.js';
 import projectsRouter from './routes/projects.js';
 import linksRouter from './routes/links.js';
+import whatsappRouter from './routes/whatsapp.js';
 import { verifyUnsubscribeToken } from './mailer.js';
 
 const app = express();
@@ -86,6 +87,7 @@ app.use('/api/groups', requireAuth, groupsRouter);
 app.use('/api/projects', requireAuth, projectsRouter);
 app.use('/api/recipients', requireAuth, recipientsRouter);
 app.use('/api/campaigns', requireAuth, campaignsRouter);
+app.use('/api/whatsapp', requireAuth, whatsappRouter);
 
 // error handler
 app.use((err, _req, res, _next) => {

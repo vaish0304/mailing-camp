@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Webhook } from 'svix';
-import { CampaignSend, Recipient, WebhookEvent } from '../db.js';
+import crypto from 'node:crypto';
+import { CampaignSend, Recipient, WebhookEvent, WhatsAppSend } from '../db.js';
 
 const router = Router();
 const SECRET = (process.env.RESEND_WEBHOOK_SECRET || '').trim();
@@ -18,6 +19,33 @@ const STATUS = {
 
 // higher rank wins — don't regress "clicked" back to "delivered"
 const RANK = { pending: 0, sent: 1, delayed: 1, delivered: 2, opened: 3, clicked: 4, bounced: 5, complained: 5, failed: 5, unsubscribed: 5 };
+const WHATSAPP_VERIFY_TOKEN = (process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || '').trim();
+const META_APP_SECRET = (process.env.META_APP_SECRET || '').trim();
+
+router.get('/whatsapp', (req, res) => {
+  if (WHATSAPP_VERIFY_TOKEN && req.query['hub.verify_token'] === WHATSAPP_VERIFY_TOKEN) return res.status(200).send(req.query['hub.challenge']);
+  return res.sendStatus(403);
+});
+
+router.post('/whatsapp', async (req, res) => {
+  try {
+    if (META_APP_SECRET) {
+      const signature = String(req.get('x-hub-signature-256') || '');
+      const expected = `sha256=${crypto.createHmac('sha256', META_APP_SECRET).update(req.body).digest('hex')}`;
+      if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return res.sendStatus(401);
+    }
+    const payload = JSON.parse(req.body.toString('utf8'));
+    const statuses = payload?.entry?.flatMap((entry) => entry.changes || []).flatMap((change) => change.value?.statuses || []) || [];
+    for (const item of statuses) {
+      const status = ['sent', 'delivered', 'read', 'failed'].includes(item.status) ? item.status : null;
+      if (!status || !item.id) continue;
+      const update = { status, last_event_at: new Date(Number(item.timestamp || 0) * 1000 || Date.now()) };
+      if (status === 'failed') update.error = item.errors?.[0]?.title || item.errors?.[0]?.message || 'Meta delivery failed';
+      await WhatsAppSend.updateOne({ message_id: item.id }, { $set: update });
+    }
+    res.sendStatus(200);
+  } catch (error) { console.error('WhatsApp webhook error:', error.message); res.sendStatus(400); }
+});
 
 // POST /api/webhooks/resend  (mounted with express.raw -> req.body is a Buffer)
 router.post('/resend', async (req, res) => {

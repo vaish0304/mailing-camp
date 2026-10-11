@@ -38,11 +38,12 @@ router.get('/', async (req, res, next) => {
 router.patch('/:id', async (req, res, next) => {
   try {
     if (!isId(req.params.id)) return res.status(404).json({ error: 'not found' });
-    const allowed = ['first_name', 'last_name', 'company', 'phone', 'city', 'unsubscribed'];
+    const allowed = ['first_name', 'last_name', 'company', 'phone', 'city', 'unsubscribed', 'whatsapp_opt_in'];
     const patch = {};
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
-        patch[k] = k === 'unsubscribed' ? Boolean(req.body[k]) : (String(req.body[k]).trim() || null);
+        patch[k] = ['unsubscribed', 'whatsapp_opt_in'].includes(k) ? Boolean(req.body[k]) : (String(req.body[k]).trim() || null);
+        if (k === 'whatsapp_opt_in' && patch[k]) patch.whatsapp_opted_in_at = new Date();
       }
     }
     if (!Object.keys(patch).length) return res.status(400).json({ error: 'nothing to update' });

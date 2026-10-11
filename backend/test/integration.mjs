@@ -8,6 +8,8 @@ process.env.FROM_EMAIL = 'campaigns@example.com';
 process.env.FROM_NAME = 'Test Sender';
 process.env.PUBLIC_BASE_URL = 'http://localhost:8099';
 process.env.PORT = '8099';
+process.env.WHATSAPP_ACCESS_TOKEN = 'test-whatsapp-token';
+process.env.WHATSAPP_PHONE_NUMBER_ID = '123456789';
 
 // Stub Resend's HTTP calls so we can test the send state machine offline.
 const realFetch = globalThis.fetch;
@@ -22,6 +24,11 @@ globalThis.fetch = (url, opts) => {
       JSON.stringify({ data: arr.map((_, i) => ({ id: `mock-${resendCalls}-${i}` })) }),
       { status: 200, headers: { 'content-type': 'application/json' } },
     ));
+  }
+  if (u.includes('graph.facebook.com')) {
+    return Promise.resolve(new Response(JSON.stringify({ messages: [{ id: `wamid.mock-${resendCalls}` }] }), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    }));
   }
   return realFetch(url, opts);
 };
@@ -238,6 +245,53 @@ await check('manual add recipient to group (upsert + validation)', async () => {
 
   const list = await j(`/api/groups/${groupId}/recipients`);
   assert(list.body.some((r) => r.email === 'manual@x.com'), 'manual recipient not in group');
+});
+
+await check('A/B test splits a fresh group sample and reports variants', async () => {
+  for (const email of ['ab-one@x.com', 'ab-two@x.com']) {
+    const added = await j(`/api/groups/${groupId}/recipients`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, first_name: 'AB', company: 'Test Company' }),
+    });
+    assert(added.status === 201, JSON.stringify(added.body));
+  }
+  const start = await j('/api/campaigns/experiments', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ groupIds: [groupId], perVariant: 1, variants: [
+      { id: 'a', name: 'Variation A', subject: 'Question A', html: '<p>Hi {{first_name}}</p>' },
+      { id: 'b', name: 'Variation B', subject: 'Question B', html: '<p>Hello {{first_name}}</p>' },
+    ] }),
+  });
+  assert(start.status === 202 && start.body.totalRecipients === 2, JSON.stringify(start.body));
+  let experiments = [];
+  for (let i = 0; i < 25; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    experiments = (await j('/api/campaigns/experiments')).body;
+    if (experiments[0]?.variants?.every((variant) => variant.status === 'sent')) break;
+  }
+  assert(experiments.length === 1, JSON.stringify(experiments));
+  assert(experiments[0].variants.length === 2, JSON.stringify(experiments[0]));
+  assert(experiments[0].variants.every((variant) => variant.total === 1 && variant.sent === 1), JSON.stringify(experiments[0]));
+});
+
+await check('WhatsApp template campaign requires consent and sends through Cloud API', async () => {
+  const added = await j(`/api/groups/${groupId}/recipients`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'whatsapp@x.com', first_name: 'WhatsApp', company: 'WA Traders', phone: '+91 98200 11111', whatsapp_opt_in: true }),
+  });
+  assert(added.status === 201 && added.body.recipient.whatsapp_opt_in, JSON.stringify(added.body));
+  const start = await j('/api/whatsapp/campaigns', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ groupIds: [groupId], templateName: 'enquiry_follow_up', languageCode: 'en_US', bodyValues: ['{{first_name}}'], targetLimit: 1 }),
+  });
+  assert(start.status === 202 && start.body.totalRecipients === 1, JSON.stringify(start.body));
+  let campaigns = [];
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 150));
+    campaigns = (await j('/api/whatsapp/campaigns')).body;
+    if (campaigns[0]?.status === 'sent') break;
+  }
+  assert(campaigns[0]?.status === 'sent' && campaigns[0].sent_count === 1, JSON.stringify(campaigns[0]));
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

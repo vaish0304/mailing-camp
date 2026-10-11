@@ -64,6 +64,87 @@ router.get('/', async (_req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// GET /api/campaigns/experiments — grouped performance for template comparisons.
+router.get('/experiments', async (_req, res, next) => {
+  try {
+    const projectId = isId(_req.query?.projectId) ? _req.query.projectId : null;
+    const filter = { experiment_id: { $ne: null } };
+    if (projectId) filter.project_id = projectId;
+    const campaigns = await Campaign.find(filter).sort({ created_at: -1 }).limit(100).lean();
+    const ids = campaigns.map((campaign) => campaign._id);
+    const rows = ids.length ? await CampaignSend.aggregate([
+      { $match: { campaign_id: { $in: ids } } },
+      { $group: { _id: { campaign_id: '$campaign_id', status: '$status' }, count: { $sum: 1 } } },
+    ]) : [];
+    const counts = new Map();
+    for (const row of rows) {
+      const id = String(row._id.campaign_id);
+      const current = counts.get(id) || {};
+      current[row._id.status] = row.count;
+      counts.set(id, current);
+    }
+    const grouped = new Map();
+    for (const campaign of campaigns) {
+      const experiment = grouped.get(campaign.experiment_id) || { id: campaign.experiment_id, created_at: campaign.created_at, variants: [] };
+      const statuses = counts.get(String(campaign._id)) || {};
+      const sent = Object.entries(statuses).reduce((sum, [status, count]) => sum + (status === 'pending' || status === 'failed' ? 0 : count), 0);
+      experiment.variants.push({
+        id: String(campaign._id), name: campaign.variant_name || campaign.variant_id || 'Variation', status: campaign.status,
+        total: campaign.total_recipients, sent, failed: statuses.failed || 0, delivered: statuses.delivered || 0,
+        opened: statuses.opened || 0, clicked: statuses.clicked || 0, bounced: statuses.bounced || 0,
+        complained: statuses.complained || 0,
+      });
+      grouped.set(campaign.experiment_id, experiment);
+    }
+    res.json([...grouped.values()]);
+  } catch (e) { next(e); }
+});
+
+// POST /api/campaigns/experiments — split a small, non-overlapping audience sample between variants.
+router.post('/experiments', async (req, res, next) => {
+  try {
+    const groupIds = [...new Set((req.body?.groupIds || []).filter(isId).map(String))];
+    const projectId = isId(req.body?.projectId) ? req.body.projectId : null;
+    const variants = (req.body?.variants || []).slice(0, 4).map((variant) => ({
+      id: String(variant?.id || '').trim().slice(0, 80), name: String(variant?.name || '').trim().slice(0, 120),
+      subject: String(variant?.subject || '').trim(), html: String(variant?.html || '').trim(),
+    })).filter((variant) => variant.id && variant.name && variant.subject && variant.html);
+    if (!groupIds.length) return res.status(400).json({ error: 'select at least one audience group' });
+    if (variants.length < 2) return res.status(400).json({ error: 'select at least two complete template variations' });
+
+    const perVariant = Math.min(Math.max(Number(req.body?.perVariant) || 5, 1), 25);
+    const audience = await recipientsForGroups(groupIds, true);
+    const usedToday = await dailyUsage();
+    const remainingToday = Math.max(DAILY_SEND_LIMIT - usedToday, 0);
+    const capacity = Math.min(audience.length, remainingToday, perVariant * variants.length);
+    const recipientsPerVariant = Math.floor(capacity / variants.length);
+    if (!recipientsPerVariant) return res.status(422).json({ error: 'Not enough eligible contacts or daily sending capacity for every selected variation' });
+
+    const experimentId = new mongoose.Types.ObjectId().toString();
+    const recipients = audience.slice(0, recipientsPerVariant * variants.length);
+    const created = [];
+    for (let index = 0; index < variants.length; index += 1) {
+      const variant = variants[index];
+      const sample = recipients.slice(index * recipientsPerVariant, (index + 1) * recipientsPerVariant);
+      const campaign = await Campaign.create({
+        subject: variant.subject, html: variant.html, from_email: FROM, reply_to: REPLY_TO || null,
+        group_ids: groupIds, project_id: projectId, experiment_id: experimentId, variant_id: variant.id,
+        variant_name: variant.name, status: 'sending', total_recipients: sample.length,
+        audience_count: sample.length, deferred_count: 0,
+      });
+      await CampaignSend.insertMany(sample.map((recipient) => ({ campaign_id: campaign._id, recipient_id: recipient._id, email: recipient.email })));
+      created.push({ campaign, sample, variant });
+    }
+
+    // Run the variants one after another so every recipient send retains the configured gap.
+    runExperiment(created).catch(async (error) => {
+      console.error(`experiment ${experimentId} failed:`, error);
+      await Campaign.updateMany({ experiment_id: experimentId, status: 'sending' }, { $set: { status: 'failed', error: String(error.message || error) } }).catch(() => {});
+    });
+    res.status(202).json({ id: experimentId, perVariant: recipientsPerVariant, totalRecipients: recipients.length, variants: created.map(({ campaign, variant }) => ({ id: String(campaign._id), name: variant.name })) });
+  } catch (e) { next(e); }
+});
+
 // GET /api/campaigns/:id
 router.get('/:id', async (req, res, next) => {
   try {
@@ -237,6 +318,12 @@ async function runCampaign(campaignId, { subject, html, attachBrochure }, recipi
     sent_at: new Date(),
   });
   console.log(`campaign ${campaignId} done: ${sent} sent, ${failed} failed`);
+}
+
+async function runExperiment(items) {
+  for (const { campaign, sample, variant } of items) {
+    await runCampaign(campaign._id, { subject: variant.subject, html: variant.html, attachBrochure: false }, sample);
+  }
 }
 
 export default router;
