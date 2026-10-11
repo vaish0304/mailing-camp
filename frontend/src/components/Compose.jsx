@@ -48,11 +48,15 @@ export default function Compose({ notify, onSent, project }) {
     const variants = TEMPLATES.filter((template) => experimentIds.includes(template.id));
     if (!groupIds.length) return notify('Select an audience group before starting an A/B test', 'error');
     if (variants.length < 2) return notify('Choose at least two variations to compare', 'error');
+    if (variants.some((template) => template.requiresTrackedLink) && !isUrl(trackedLink)) return notify('Choose one tracked demo-video link for this video-template test', 'error');
     const total = variants.length * experimentPerVariant;
     if (!confirm(`Send ${experimentPerVariant} eligible contacts each for ${variants.length} variations (${total} emails total)? Each contact receives one variation only.`)) return;
     setBusy('experiment');
     try {
-      const result = await api.startExperiment({ groupIds, projectId: project.id, perVariant: experimentPerVariant, variants: variants.map(({ id, name, subject: variantSubject, html: variantHtml }) => ({ id, name, subject: variantSubject, html: variantHtml })) });
+      const result = await api.startExperiment({ groupIds, projectId: project.id, perVariant: experimentPerVariant, variants: variants.map(({ id, name, subject: variantSubject, html: variantHtml }) => {
+        const isEditedControl = id === templateId;
+        return { id, name, subject: isEditedControl ? subject : variantSubject, html: (isEditedControl ? html : variantHtml).replaceAll('%%TRACKED_LINK%%', trackedLink.trim()) };
+      }) });
       notify(`A/B test started: ${result.perVariant} contacts per variation (${result.totalRecipients} total).`);
       await load(); onSent?.();
     } catch (error) { notify(error.message, 'error'); }

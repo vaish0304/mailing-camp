@@ -1,51 +1,60 @@
-// Compact, reply-led outreach templates. Personalisation tokens are rendered
-// per recipient and the compliance footer is supplied by the backend.
-// These designs deliberately avoid campaign-style headers, large images,
-// buttons, and tracked links. Gmail decides the final inbox category.
+// The video demo is the control. Variants deliberately preserve the same
+// video and CTA structure so A/B results isolate message framing instead of
+// comparing unrelated email formats. The backend appends the unsubscribe footer.
 
-const personalEmail = (inner) => `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;color:#202124;font-size:15px;line-height:1.55">${inner}</div>`;
+const PUBLIC_APP_URL = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
+const DEMO_POSTER = `${PUBLIC_APP_URL}/campaign-media/ai-sales-assistant-demo-thumbnail.png`;
+
+const videoTemplate = ({ eyebrow, headline, opening, cta }) => `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#0a243e;background:#ffffff">
+  <div style="padding:34px 34px 12px">
+    <p style="margin:0 0 11px;font-size:13px;line-height:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0b8f54">${eyebrow}</p>
+    <h1 style="margin:0 0 17px;font-size:28px;line-height:35px">${headline}</h1>
+    <p style="margin:0;font-size:16px;line-height:25px;color:#3d5262">Hi {{first_name}}, ${opening}</p>
+  </div>
+  <div style="padding:8px 34px 16px;font-size:16px;line-height:25px;color:#3d5262"><strong style="color:#0a243e">AI Sales Assistant for WhatsApp</strong> helps {{company}} reply promptly, share consistent information and keep every enquiry organised while the sales team focuses on customers.</div>
+  <div style="padding:0 34px 25px;font-size:16px;line-height:29px"><div><span style="color:#0a9b59;font-weight:700">✓</span>&nbsp; Faster replies to stock, price and dispatch questions</div><div><span style="color:#0a9b59;font-weight:700">✓</span>&nbsp; Your own catalogue and pricing context</div><div><span style="color:#0a9b59;font-weight:700">✓</span>&nbsp; A clear record for the sales team to follow up</div></div>
+  <div style="padding:0 20px 8px"><a href="%%TRACKED_LINK%%" target="_blank" style="display:block;text-decoration:none"><img src="${DEMO_POSTER}" width="560" alt="Watch the AI Sales Assistant WhatsApp demo" style="display:block;width:100%;max-width:560px;height:auto;margin:0 auto;border:0;border-radius:10px" /></a></div>
+  <p style="padding:16px 34px 2px;margin:0;text-align:center;font-size:16px;line-height:24px;font-weight:700">${cta}</p>
+  <div style="padding:16px 24px 24px;text-align:center"><a href="%%TRACKED_LINK%%" target="_blank" style="background:#0b8f54;color:#ffffff;text-decoration:none;font-size:17px;font-weight:700;line-height:22px;padding:13px 25px;border-radius:7px;display:inline-block">Watch the short demo</a></div>
+</div>`;
 
 export const TEMPLATES = [
   {
-    id: 'base-question',
-    name: 'Main · Question-first',
-    deliveryStyle: 'Personal outreach / lower Promotions signal',
-    subject: 'Question about WhatsApp enquiries at {{company}}',
-    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
-      <p style="margin:0 0 16px">I came across {{company}} and wanted to ask a quick question: when someone messages your team on WhatsApp for stock, pricing or dispatch details, is it easy to respond while the enquiry is still active?</p>
-      <p style="margin:0 0 16px">We help sales teams use the product and pricing information they already maintain to give customers a faster first response. If this is relevant, would you be open to a short reply with the person who handles this at {{company}}?</p>
-      <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
+    id: 'video-control',
+    name: 'Main · WhatsApp video demo',
+    deliveryStyle: 'Video-demo control',
+    requiresTrackedLink: true,
+    trackedLinkLabel: 'Tracked demo-video link',
+    subject: '{{company}}: how many WhatsApp sales enquiries wait each day?',
+    html: videoTemplate({ eyebrow: 'For distributors, wholesalers & retailers', headline: 'How many WhatsApp sales enquiries wait each day?', opening: 'customers ask about stock, latest pricing and dispatch status throughout the day. Manual checking can slow replies when the enquiry is still active.', cta: 'See how the sales workflow works in practice.' }),
   },
   {
-    id: 'context-first',
-    name: 'Variation A · Context-first',
-    deliveryStyle: 'Personal outreach / lower Promotions signal',
-    subject: 'A quick question for {{company}}',
-    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
-      <p style="margin:0 0 16px">For businesses handling product enquiries on WhatsApp, price, availability and dispatch questions can arrive faster than the team can answer them.</p>
-      <p style="margin:0 0 16px">We are speaking with teams that want to make the first reply quicker using the catalogue and price information they already use. Is that something {{company}} is looking at this year?</p>
-      <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
+    id: 'video-variation-a',
+    name: 'Variation A · Lost-order angle',
+    deliveryStyle: 'Video-demo variation',
+    requiresTrackedLink: true,
+    trackedLinkLabel: 'Tracked demo-video link',
+    subject: '{{company}}: a late WhatsApp reply can become a lost order',
+    html: videoTemplate({ eyebrow: 'For distribution sales teams', headline: 'A customer will not wait for a product reply.', opening: 'when price or availability takes too long to confirm, buyers often ask another supplier. This short video shows a simpler first-response workflow.', cta: 'See the workflow for keeping enquiries moving.' }),
   },
   {
-    id: 'referral-first',
-    name: 'Variation B · Referral-first',
-    deliveryStyle: 'Personal outreach / lower Promotions signal',
-    subject: 'Who looks after WhatsApp enquiries at {{company}}?',
-    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
-      <p style="margin:0 0 16px">Could you point me to the person responsible for customer enquiries on WhatsApp at {{company}}?</p>
-      <p style="margin:0 0 16px">We help B2B sales teams give a more consistent first response to routine product and pricing questions. I only want to send a short explanation if it is relevant to your team.</p>
-      <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
+    id: 'video-variation-b',
+    name: 'Variation B · Catalogue angle',
+    deliveryStyle: 'Video-demo variation',
+    requiresTrackedLink: true,
+    trackedLinkLabel: 'Tracked demo-video link',
+    subject: '{{company}}: put your catalogue to work on WhatsApp',
+    html: videoTemplate({ eyebrow: 'For product-led sales teams', headline: 'Your catalogue should help answer the first question.', opening: 'your team already has product and price information; the challenge is making it available when customers message. The video below shows how that can work on WhatsApp.', cta: 'Watch a short catalogue-to-conversation demo.' }),
   },
   {
-    id: 'pain-first',
-    name: 'Variation C · Response-time',
-    deliveryStyle: 'Personal outreach / lower Promotions signal',
-    subject: 'A question about response time at {{company}}',
-    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
-      <p style="margin:0 0 16px">When a customer asks for stock or a price on WhatsApp, does the reply ever wait because someone has to check several files or people first?</p>
-      <p style="margin:0 0 16px">We help teams bring their existing product and price information into that first response. Would it be useful to compare notes on how {{company}} manages this today?</p>
-      <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
+    id: 'video-variation-c',
+    name: 'Variation C · Team-time angle',
+    deliveryStyle: 'Video-demo variation',
+    requiresTrackedLink: true,
+    trackedLinkLabel: 'Tracked demo-video link',
+    subject: '{{company}}: reduce the back-and-forth on routine WhatsApp enquiries',
+    html: videoTemplate({ eyebrow: 'For busy sales teams', headline: 'Let the team focus on closing, not repeating answers.', opening: 'routine stock, price and dispatch questions can take time away from higher-value customer conversations. This video shows how teams can keep the first response consistent.', cta: 'See the short WhatsApp sales-assistant demo.' }),
   },
 ];
 
-export const DEFAULT_TEMPLATE_ID = 'base-question';
+export const DEFAULT_TEMPLATE_ID = 'video-control';
