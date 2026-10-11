@@ -16,6 +16,12 @@ const button = (label, href) => `<a href="${href}" style="display:inline-block;b
 const PUBLIC_APP_URL = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
 const DEMO_POSTER = `${PUBLIC_APP_URL}/campaign-media/ai-sales-assistant-demo-thumbnail.png`;
 
+// These are intentionally light on visual and promotional signals. They work
+// best when the sender is a real person, the recipient/company data is correct,
+// and the message is used for a small, relevant outreach segment. Gmail still
+// decides the final inbox category.
+const personalEmail = (inner) => `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;color:#202124;font-size:15px;line-height:1.55">${inner}</div>`;
+
 export const TEMPLATES = [
   {
     id: 'blank',
@@ -25,7 +31,8 @@ export const TEMPLATES = [
   },
   {
     id: 'distributor-whatsapp-demo',
-    name: 'Distributor WhatsApp Demo',
+    name: 'Promotional · Distributor Demo',
+    deliveryStyle: 'Campaign / likely Promotions',
     requiresTrackedLink: true,
     trackedLinkLabel: 'Tracked video or Drive link',
     subject: '{{company}}: how many WhatsApp sales inquiries wait each day?',
@@ -68,101 +75,68 @@ export const TEMPLATES = [
   },
   {
     id: 'intro',
-    name: 'Cold intro',
-    subject: 'Reply to every WhatsApp price inquiry in seconds',
-    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
-    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
-      Distributors like {{company}} get 200–1,000+ price inquiries a day on WhatsApp.
-      Our AI sales assistant reads each one, checks your Excel price list, and sends an
-      accurate quotation instantly — no missed leads, no manual errors.
-    </p>
-    <ul style="font-size:14px;line-height:1.7;margin:0 0 18px;padding-left:20px">
-      <li>Instant WhatsApp quotations from your own catalog</li>
-      <li>Every inquiry logged, assigned and tracked</li>
-      <li>Setup in days, not months — no CRM training</li>
-    </ul>
-    ${button('Book a 10-minute demo', 'https://aisales-assistant2.netlify.app/')}
-    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">— Team AI Sales Assistant</p>`),
+    name: 'Personal · First introduction',
+    deliveryStyle: 'Personal outreach / lower Promotions signal',
+    subject: 'Question about WhatsApp enquiries at {{company}}',
+    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
+    <p style="margin:0 0 16px">I came across {{company}} and wanted to ask a quick question: when someone messages your team on WhatsApp for stock, pricing or dispatch details, is it easy to respond while the enquiry is still active?</p>
+    <p style="margin:0 0 16px">We help sales teams use the product and pricing information they already maintain to give customers a faster first response. If this is relevant, would you be open to a short reply with the person who handles this at {{company}}?</p>
+    <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
   },
   {
     id: 'followup',
-    name: 'Follow-up',
+    name: 'Personal · Follow-up',
+    deliveryStyle: 'Personal outreach / lower Promotions signal',
     subject: 'Following up — quick question for {{company}}',
-    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
-    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
-      Just following up on my note about the WhatsApp AI sales assistant for {{company}}.
-      Worth a quick look to see how it fits your inquiry workflow in {{city}}?
-    </p>
-    <p style="font-size:14px;line-height:1.65;margin:0 0 18px">
-      Happy to send a short video or set up a call — whatever's easier.
-    </p>
-    ${button('See how it works', 'https://aisales-assistant2.netlify.app/')}
-    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">— Team AI Sales Assistant</p>`),
+    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
+    <p style="margin:0 0 16px">Just following up on my note about handling WhatsApp sales enquiries at {{company}}.</p>
+    <p style="margin:0 0 16px">Is improving the response time for product or price questions something your team is looking at this quarter? A simple yes or no is helpful.</p>
+    <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
   },
   {
     id: 'wholesale-distribution',
-    name: 'Wholesale & Distribution',
-    subject: '{{company}}: respond to every product enquiry while it is still warm',
-    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
-    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
-      For a distributor, a delayed reply to a WhatsApp product enquiry can mean a lost order.
-      AI Sales Assistant turns your catalogue and price list into fast, consistent quotations — even during busy hours.
-    </p>
-    <div style="margin:0 0 18px;padding:16px 18px;background:#f8f4e8;border-left:4px solid #cc9a2b;border-radius:4px">
-      <p style="margin:0;font-size:14px;line-height:1.6"><strong>Built for channel businesses:</strong> answer price, availability and product questions quickly, while keeping your team focused on closing orders.</p>
-    </div>
-    ${button('See the workflow', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=wholesale')}
-    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">Would a brief 10-minute walkthrough be useful for {{company}}?</p>
-    <p style="font-size:13px;color:#5c6b63;margin:12px 0 0">— Team AI Sales Assistant</p>`),
+    name: 'Personal · Distribution question',
+    deliveryStyle: 'Personal outreach / lower Promotions signal',
+    subject: 'A question for {{company}}\'s sales team',
+    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
+    <p style="margin:0 0 16px">For distribution businesses, customers often message for price, availability and dispatch details before placing an order. I was curious how {{company}} currently manages those WhatsApp enquiries during busy hours.</p>
+    <p style="margin:0 0 16px">We are working with teams that want to make those first replies quicker using their existing catalogue and price information. Would it make sense to send you a brief explanation?</p>
+    <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
   },
   {
     id: 'industrial-automation',
-    name: 'Industrial & Automation',
-    subject: 'Faster, more accurate replies to technical product enquiries',
-    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
-    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
-      Technical buyers expect clear answers on specifications, products and commercial details. AI Sales Assistant helps {{company}} respond to WhatsApp enquiries using your approved product information and price data.
-    </p>
-    <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 18px;font-size:14px">
-      <tr><td style="padding:10px 0;border-bottom:1px solid #f3ead4">Use your own catalogue and price list</td></tr>
-      <tr><td style="padding:10px 0;border-bottom:1px solid #f3ead4">Give prospects a prompt, consistent first response</td></tr>
-      <tr><td style="padding:10px 0">Track enquiries so the sales team can follow up</td></tr>
-    </table>
-    ${button('Explore the solution', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=industrial')}
-    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">If faster enquiry handling is a priority this quarter, I would be glad to show you how it works.</p>
-    <p style="font-size:13px;color:#5c6b63;margin:12px 0 0">— Team AI Sales Assistant</p>`),
+    name: 'Personal · Technical enquiries',
+    deliveryStyle: 'Personal outreach / lower Promotions signal',
+    subject: 'Technical product enquiries at {{company}}',
+    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
+    <p style="margin:0 0 16px">I am reaching out because technical buyers often need a prompt first answer on specifications, pricing or availability before a sales engineer can take over.</p>
+    <p style="margin:0 0 16px">Does {{company}} receive those questions on WhatsApp today? If so, I can share how teams use their approved product information to make the initial response more consistent.</p>
+    <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
   },
   {
     id: 'b2b-intro',
-    name: 'B2B Business Intro',
-    subject: 'A simpler way for {{company}} to keep up with WhatsApp enquiries',
-    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
-    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
-      When customer questions arrive across WhatsApp, it is easy for a promising enquiry to wait too long. AI Sales Assistant helps teams reply quickly with the right product and pricing context.
-    </p>
-    <p style="font-size:14px;line-height:1.65;margin:0 0 18px">
-      It is designed to work with the information your business already uses — product catalogues, price lists and your sales workflow — without forcing a complex CRM rollout.
-    </p>
-    ${button('Book a short introduction', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=b2b-intro')}
-    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">Best regards,<br/>Team AI Sales Assistant</p>`),
+    name: 'Personal · B2B question',
+    deliveryStyle: 'Personal outreach / lower Promotions signal',
+    subject: 'Who handles WhatsApp sales enquiries at {{company}}?',
+    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
+    <p style="margin:0 0 16px">Could you point me to the person responsible for customer enquiries on WhatsApp at {{company}}?</p>
+    <p style="margin:0 0 16px">We help B2B sales teams give a quicker first response using the product and pricing information they already use. I only want to send a short note if this is relevant to your team.</p>
+    <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
   },
   {
     id: 'tamil-nadu',
-    name: 'Tamil Nadu Businesses',
-    subject: '{{company}}: make every WhatsApp enquiry easier to manage',
-    html: shell(`    <p style="font-size:16px;margin:0 0 14px">Hi {{first_name}},</p>
-    <p style="font-size:14px;line-height:1.65;margin:0 0 14px">
-      We are introducing AI Sales Assistant to growing businesses that want to give customers a quicker response without adding avoidable manual work.
-    </p>
-    <p style="font-size:14px;line-height:1.65;margin:0 0 18px">
-      The assistant can use {{company}}'s own product information and price list to support your team with faster WhatsApp quotations and enquiry follow-up.
-    </p>
-    ${button('Request a walkthrough', 'https://aisales-assistant2.netlify.app/?utm_source=mailing-camp&utm_medium=email&utm_campaign=tamil-nadu')}
-    <p style="font-size:13px;color:#5c6b63;margin:24px 0 0">— Team AI Sales Assistant</p>`),
+    name: 'Personal · Tamil Nadu outreach',
+    deliveryStyle: 'Personal outreach / lower Promotions signal',
+    subject: 'Quick question for {{company}}',
+    html: personalEmail(`<p style="margin:0 0 16px">Hi {{first_name}},</p>
+    <p style="margin:0 0 16px">I am getting in touch with businesses in {{city}} that handle customer enquiries on WhatsApp.</p>
+    <p style="margin:0 0 16px">Would a faster way to answer routine product, price and dispatch questions be useful for {{company}}? If not, I will not follow up.</p>
+    <p style="margin:0">Regards,<br/>AI Sales Assistant</p>`),
   },
   {
     id: 'whatsapp-speed-creative',
-    name: 'WhatsApp Speed Creative',
+    name: 'Promotional · WhatsApp Creative',
+    deliveryStyle: 'Campaign / likely Promotions',
     subject: '{{company}}: every late WhatsApp reply can cost an order',
     html: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#14231d;background:#ffffff">
   <img src="https://mailing-camp.vercel.app/campaign-media/whatsapp-distributor-phone-v1.png" alt="Customer wait nahi karta. Late reply equals lost order. AI Sales Assistant helps distributors reply faster on WhatsApp." width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none" />
@@ -177,4 +151,4 @@ export const TEMPLATES = [
   },
 ];
 
-export const DEFAULT_TEMPLATE_ID = 'test';
+export const DEFAULT_TEMPLATE_ID = 'intro';
